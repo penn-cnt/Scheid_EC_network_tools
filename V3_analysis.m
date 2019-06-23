@@ -19,10 +19,10 @@ if strcmp(Null,'Null')
 end
 
 subject=EC_subjects;
-addpath(genpath('~/Documents/MyNetworkTools/'))
+addpath(genpath('~/Documents/CODE/'))
 
-cols=[[121,29,38];[255,168,231];[242,224,43];[74,156,85];...
-    [75,184,166];[36,67,152];[140,42,195];[80,80,80]; [255,255,255]]/255;
+cols=[[75,184,166];[255,168,231]; [36,67,152];[140,42,195];[121,29,38];[242,224,43];[74,156,85];...
+   [80,80,80]; [255,255,255]]/255;
 
 i_ict=find(strcmp({Partitions.type},'ictal'));
 i_preict=find(strcmp({Partitions.type},'preictal'));
@@ -43,14 +43,14 @@ labels(1:nIct)={'State 1'}; labels(nIct+1:2*nIct)={'State 2'}; labels(2*nIct+1:3
   
 figure(1); clf; hold on
 scatterhist(meds_ict(:),lens_ict(:),'Group',labels','Kernel','on','Location','NorthEast',...
-    'Direction','out','Color',cols([5,2,6],:),'LineStyle',{'-','-','-'},...
+    'Direction','out','Color',cols(1:3,:),'LineStyle',{'-','-','-'},...
     'LineWidth',[2,2,2],'Marker','ddd','MarkerSize',[5,5,5]);
 ylabel(''); xlabel('');
 set(gca,'xaxisLocation','bottom', 'yaxislocation', 'left', 'fontsize', 18)
 
 figure(2); clf; hold on
 scatterhist(meds_preict(:),lens_preict(:),'Group',labels','Kernel','on','Location','NorthEast',...
-    'Direction','out','Color',cols([5,2,6],:),'LineStyle',{'-','-','-'},...
+    'Direction','out','Color',cols(1:3,:),'LineStyle',{'-','-','-'},...
     'LineWidth',[2,2,2],'Marker','ddd','MarkerSize',[5,5,5]);
 ylabel(''); xlabel('');
 set(gca,'xaxisLocation','bottom', 'yaxislocation', 'left','fontsize', 18)
@@ -138,7 +138,7 @@ for i_set=i_ict
     figure(4)
     %set(gca, 'Position', get(gca, 'Position')+[0,.05,0,0])
     imagesc(st) 
-    colormap(gca, cols([5,2,6],:));
+    colormap(gca, cols(1:3,:));
     set(gca, 'YTick', [], 'fontsize', 18)
     
     
@@ -243,7 +243,7 @@ for type={'i_ict', 'i_preict'} %, 'i_null'
     for i=1:nMeas
         subplot(1,3,i);
         hold on
-        h=boxplot(eval(['glob',metrics{i},'(', type{1},',:)']),{'State 1', 'State 2', 'State 3'}, 'Colors', cols([5,2,6],:));
+        h=boxplot(eval(['glob',metrics{i},'(', type{1},',:)']),{'State 1', 'State 2', 'State 3'}, 'Colors', cols(1:3,:));
         set(h,{'linew'},{2})
         ylabel(metrics{i})
         title(metrics{i})

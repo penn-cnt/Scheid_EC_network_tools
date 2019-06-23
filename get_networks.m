@@ -1,4 +1,4 @@
-%% Get Networks
+%% Get GLASSO Networks
 % This script calls the getICov.R script located in EC_glasso to retrieve
 % inverse covariance and partial correlation matrices across channels in
 % time chunks of size Lwin. 
@@ -7,7 +7,7 @@
 dataSet= clean_EC_data;
 Null='';
 %load('Data/nullData.mat'); dataSet= nullData; 
-load('Data/subjects.mat')
+%load('Data/subjects.mat')
 
 %%
 
@@ -62,21 +62,3 @@ eval([Null, 'Networks=Networks']);
 save(sprintf('Data/%sNetworks.mat', Null), sprintf('%sNetworks', Null));
 
 clear pcm triu_i t block type ID TT i_set networks N l Lwin lambdas Fs data
-
-%% Run to create Networks afterwards
-
-% for i_set=1:70
-%     
-%     try
-%         load(sprintf('Data/network_set%d.mat', i_set))
-%     catch
-%         warning('Set %d does not exist', i_set)
-%         continue
-%     end
-%     
-%     Networks(i_set).ID=ID;
-%     Networks(i_set).type=type;
-%     Networks(i_set).block=block;
-%     Networks(i_set).nets=Networks;
-%     Networks(i_set).sim=corrcoef(Networks.config_pcm).*~eye(size(Networks.config_pcm,2));
-% end
