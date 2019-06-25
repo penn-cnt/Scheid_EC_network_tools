@@ -143,4 +143,4 @@ save(sprintf('Data/%sPartitions.mat', Null), sprintf('%sPartitions', Null))
 
 %save('Data/partitions.mat', 'partitions');
 
-%system('mail -s "Borel Sims" "brittany.h.scheid@gmail.com" <<< "Sims Done"')
+%try; run ___.m; system('mail -s "Borel Finished" "brittany.h.scheid@gmail.com" <<< "Test Job Done"'); catch ME; system(sprintf('mail -s "Borel Error" "brittany.h.scheid@gmail.com" <<< "%s, %s"', ME.identifier, ME.message)); rethrow(ME);  end;   

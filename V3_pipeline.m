@@ -33,7 +33,11 @@ load('Data/Energy.mat')
 % 6) Robustness
 % assessModalThresh.m
 
-%%
+%% Get coordinates of SOZ
+
+for i_set=1:nSets
+    
+end
 
 figure(4); clf; hold on;
 plot(squeeze(sum(sum(icov>0,1)))./85^2)
