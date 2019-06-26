@@ -1,7 +1,7 @@
 %V3_analysis
 
 Null='';
-%load('Data/dataSets_clean.mat'); dataSets_clean=clean_EC_data; 
+load('Data/dataSets_clean.mat');
 load('Data/subjects.mat')
 load(sprintf('Data/%sNetworks.mat', Null)); 
 load(sprintf('Data/%sPartitions.mat', Null));
@@ -18,7 +18,6 @@ if strcmp(Null,'Null')
     dataSets_clean=nullData;
 end
 
-subject=EC_subjects;
 addpath(genpath('~/Documents/CODE/'))
 
 cols=[[75,184,166];[255,168,231]; [36,67,152];[140,42,195];[121,29,38];[242,224,43];[74,156,85];...
@@ -78,7 +77,6 @@ metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'};
 %metrics={'degree', 'aveCtrl', 'modalCtrl'}; 
 
 for i_set=i_ict
-    
     
     figure(3); clf; 
     p= Partitions(i_set);
@@ -140,9 +138,7 @@ for i_set=i_ict
     imagesc(st) 
     colormap(gca, cols(1:3,:));
     set(gca, 'YTick', [], 'fontsize', 18)
-    
-    
-    
+
     pause
 end
 
@@ -175,7 +171,7 @@ for i_set=1:nSets
 end
 
 display='off';
-
+metrics=[metrics, 'optEnergy'];
 % Get group level averages
 for i=1:length(metrics)
     
@@ -190,7 +186,7 @@ for i=1:length(metrics)
 end
     
 disp('done')
-%% Display results of Friedman's test
+%% Display results of Friedman's test individually
 ctr=1;
 
 for type=[i_ict', i_preict']
@@ -201,7 +197,7 @@ for type=[i_ict', i_preict']
     
     ma=reshape([analysis(type).PmodalCtrl],3, nSamp)'<alpha;
     sa=reshape([analysis(type).PaveCtrl],3, nSamp)'<alpha;
-    st=reshape([analysis(type).Pstrength],3, nSamp)'<alpha;
+    st=reshape([analysis(type).Pstrength],3, nSamp)'<alpha; 
 
     dma=diffsmodalCtrl(type,:).*ma;
     dsa=diffsaveCtrl(type,:).*sa;
@@ -353,10 +349,7 @@ NetworkTable=table({Networks.ID}', {Networks.type}', {Networks.block}', Density,
     'RposNeg_pcm', 'corricov', 'corrpcm'});
 writetable(NetworkTable,'Data/networkTable.csv')
 
-%% TODO: 
 
-% Where do maximum controllability values occur?
-% What do we expect with signed controllability?
 
-%% Quantification/Stats
+
 

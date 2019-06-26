@@ -33,20 +33,20 @@ load('Data/Energy.mat')
 % 6) Robustness
 % assessModalThresh.m
 
-%% Get coordinates of SOZ
+%% Avg Distance from Node to SOZ nodes
 
-for i_set=1:nSets
-    
+% get distance 
+for i_set=1:nIct
+
+    if isempty(dataSets_clean(i_set).channels_soz)
+        continue
+    end
+    % Get coordinates of soz nodes for subject
+    pt_idx=strcmp(dataSets_clean(i_set).ID, {subjects.ID});
+    sozIdx=contains(subjects(pt_idx).grids,dataSets_clean(i_set).channels_soz); 
+    sozCoords=subjects(pt_idx).gridCoords(sozIdx,:);
+
+    avgDist{i_set}=mean(pdist2(sozCoords, subjects(pt_idx).gridCoords))';
 end
-
-figure(4); clf; hold on;
-plot(squeeze(sum(sum(icov>0,1)))./85^2)
-plot(squeeze(sum(sum(icov<0,1)))./85^2)
-
-figure(5); clf; hold on;
-plot(squeeze(sum(sum(pcm>0,1)))./85^2)
-plot(squeeze(sum(sum(pcm<0,1)))./85^2)
-
-
 
 
