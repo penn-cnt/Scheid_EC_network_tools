@@ -1,5 +1,6 @@
 %% EC Controllability- V3 Pipeline
 
+cd('/Users/bscheid/Documents/LittLab/PROJECTS/p01_EC_controllability/v3/Code')
 Null='';
 
 % 1) Load Data 
@@ -13,7 +14,7 @@ load('Data/subjects.mat')
 load('Data/nullData.mat')
 %%
 % 2) Get Networks
-% run get_networks.m
+%run get_networks.m
 load(sprintf('Data/%sNetworks.mat', Null))
 
 % 3) Find Partitions
@@ -34,19 +35,25 @@ load('Data/Energy.mat')
 % assessModalThresh.m
 
 %% Avg Distance from Node to SOZ nodes
-
-% get distance 
-for i_set=1:nIct
+avgDist=cell(39,1);
+% get average distance from a given node to all SOZ nodes
+for i_set=1:39
 
     if isempty(dataSets_clean(i_set).channels_soz)
         continue
     end
     % Get coordinates of soz nodes for subject
     pt_idx=strcmp(dataSets_clean(i_set).ID, {subjects.ID});
-    sozIdx=contains(subjects(pt_idx).grids,dataSets_clean(i_set).channels_soz); 
-    sozCoords=subjects(pt_idx).gridCoords(sozIdx,:);
-
-    avgDist{i_set}=mean(pdist2(sozCoords, subjects(pt_idx).gridCoords))';
+    r_id=strcmp(dataSets_clean(i_set).ID, {dataSets_raw.ID});
+    r_blk=ismember([dataSets_raw.block],dataSets_clean(i_set).block);
+    inds=find(r_id.*r_blk);
+    
+    nIgnore=~ismember(subjects(pt_idx).grids, dataSets_raw(inds(1)).toIgnore); 
+    sozIdx=ismember(subjects(pt_idx).grids,dataSets_clean(i_set).channels_soz); 
+    
+   sozCoords=subjects(pt_idx).gridCoords(logical(sozIdx.*nIgnore),:);
+   avgDist{i_set}=mean(pdist2(sozCoords, subjects(pt_idx).gridCoords(nIgnore,:)))';
 end
 
+save('Data/avgDist.mat', 'avgDist')
 

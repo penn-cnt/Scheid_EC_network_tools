@@ -1,5 +1,7 @@
 %V3_analysis
 
+cd '/Users/bscheid/Documents/LittLab/PROJECTS/p01_EC_controllability/v3/Code'
+
 Null='';
 load('Data/dataSets_clean.mat');
 load('Data/subjects.mat')
@@ -7,6 +9,7 @@ load(sprintf('Data/%sNetworks.mat', Null));
 load(sprintf('Data/%sPartitions.mat', Null));
 load(sprintf('Data/%sMetric_matrices.mat', Null)); 
 load(sprintf('Data/%sState_metrics.mat', Null))
+load('Data/avgDist.mat');
 
 eval(['Networks=', Null, 'Networks'])
 eval(['Partitions=', Null, 'Partitions'])
@@ -148,7 +151,9 @@ ctype='bonferroni';
 display='off';
 
 analysis=struct();
-metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength'}; 
+diffs=struct();
+glob=struct();
+metrics={'aveCtrl', 'modalCtrl', 'optEnergy', 'tModalCtrl','pModalCtrl', 'strength'}; 
 
 for i_set=1:nSets
     
@@ -164,14 +169,14 @@ for i_set=1:nSets
             metrics{i}, metrics{i}, metrics{i}));
         
         % Save P value, difference, and global average
-        eval(sprintf('analysis(i_set).P%s=c_%s(:,6);',metrics{i}, metrics{i}));
+        eval(sprintf('analysis(i_set).%s=c_%s(:,6);',metrics{i}, metrics{i}));
         eval(sprintf('diffs%s(i_set,:)=c_%s(:,4);', metrics{i}, metrics{i}));
         eval(sprintf('glob%s(i_set,:)=mean(s.%s(:,1:3));', metrics{i}, metrics{i})); 
     end
 end
 
 display='off';
-metrics=[metrics, 'optEnergy'];
+
 % Get group level averages
 for i=1:length(metrics)
     
@@ -189,24 +194,27 @@ disp('done')
 %% Display results of Friedman's test individually
 ctr=1;
 
-for type=[i_ict', i_preict']
+metrics={'aveCtrl', 'modalCtrl', 'optEnergy', 'tModalCtrl','pModalCtrl', 'strength'}; 
+
+for type=[i_ict'; i_preict']
     figure(ctr)
     alpha=0.01;
-    nMeas=3;   % number of measures
-    nSamp=length([analysis(type).PmodalCtrl]);
+    nMeas=length(metrics);   % number of measures
+    nSamp=length([analysis(type).modalCtrl]);
     
-    ma=reshape([analysis(type).PmodalCtrl],3, nSamp)'<alpha;
-    sa=reshape([analysis(type).PaveCtrl],3, nSamp)'<alpha;
-    st=reshape([analysis(type).Pstrength],3, nSamp)'<alpha; 
-
-    dma=diffsmodalCtrl(type,:).*ma;
-    dsa=diffsaveCtrl(type,:).*sa;
-    ddst=diffsstrength(type,:).*st;
+    % Get all metrics and 
+    met=[];
+    diffs=[];
+    for m=1:length(metrics)
+        ma=reshape([analysis(type).(metrics{m})],3, nSamp)'<alpha;
+        dma=diffsmodalCtrl(type,:).*ma;
+        met=[met, ma];
+        diffs=[diffs, dma]; 
+    end
 
     clf; hold on;
     colormap(gca,cols([9,5,2,6],:));
-    imagesc([sa,ma,st].*repmat([1:3],nSamp,nMeas))
-    diffs=[dsa,dma,ddst];
+    imagesc(met.*repmat([1:3],nSamp,nMeas))
 
     plot((diffs>0).*repmat((1:nMeas*3),nSamp,1),repmat((1:nSamp)',1,nMeas*3),'v','color', 'cyan')
     plot((diffs<0).*repmat((1:nMeas*3),nSamp,1),repmat((1:nSamp)',1,nMeas*3),'^','color', 'white')
@@ -214,7 +222,7 @@ for type=[i_ict', i_preict']
     yticks([1:nSamp])
     yticklabels({Metric_matrices(type).ID});
     xticks([2:3:nMeas*3-1])
-    xticklabels({'avg', 'modal','strength'})
+    xticklabels(metrics)
     stem(3*[1:nMeas]+.5,ones(1,nMeas)*length(sa),...
         'Marker', 'none', 'lineWidth', 0.5, 'color', 'black')
     title({'Significant effect of seizure state on metric'})
@@ -229,17 +237,29 @@ for type=[i_ict', i_preict']
     xlim([0.5, Inf])
     ctr= ctr+1;
 end
+disp('done')
 %% Group Level Trends Ictal preictal, and null model
 
-ctr=1;
+ctr=6;
 
-metrics={'aveCtrl', 'modalCtrl', 'strength'};
+metrics={'optEnergy'} %'optEnergy'};
 for type={'i_ict', 'i_preict'} %, 'i_null'
     figure(ctr); clf;
-    for i=1:nMeas
-        subplot(1,3,i);
+    for i=1:length(metrics)
+        subplot(1,length(metrics),i);
         hold on
-        h=boxplot(eval(['glob',metrics{i},'(', type{1},',:)']),{'State 1', 'State 2', 'State 3'}, 'Colors', cols(1:3,:));
+        outs=sort(eval(['glob',metrics{i}, '(isoutlier(glob',metrics{i},'))']))
+        
+        % Set datalimits if outliers are > 2 std away
+        maxLim=outs(find(zscore(outs)>2, 1, 'first')-1);
+        minLim=outs(find(zscore(outs)<-2, 1, 'last')+1);
+        
+        if isempty(minLim); minLim=-Inf; end
+        if isempty(maxLim); maxLim=Inf; end
+        
+        h=boxplot(eval(['glob',metrics{i},'(', type{1},',:)']), ...
+            {'Phase 1', 'Phase 2', 'Phase 3'}, 'Colors', cols(1:3,:), ...
+            'dataLim', [minLim, maxLim]);
         set(h,{'linew'},{2})
         ylabel(metrics{i})
         title(metrics{i})
@@ -247,7 +267,32 @@ for type={'i_ict', 'i_preict'} %, 'i_null'
         sigstar(num2cell(cs(cs(:,6)<=0.05,[1:2]),2));
     end
     suptitle([type{1}(3:end), 'al'])
-    ctr= ctr+1;
+    ctr= ctr+2;
+end
+
+%% Is there a correlation with distance to SOZ?
+
+metrics={'aveCtrl', 'modalCtrl', 'optEnergy', 'tModalCtrl','pModalCtrl', 'strength'};
+for i_set=1:39
+    i_set
+    met=State_metrics(i_set).modalCtrl;
+    if isempty(avgDist{i_set})
+        continue
+    end
+for s=1:3
+    subplot(1,3,s)
+    hold on
+    [cor, pval]=corr(met(:,s), avgDist{i_set});
+    scatter(met(:,s), avgDist{i_set});
+    tbl=table(met(:,s), avgDist{i_set});
+    mdl = fitlm(tbl,'linear');
+    plot(met(:,s),mdl.Fitted);
+    text(.565, .9, sprintf('R^2 = %f',mdl.Rsquared.Adjusted))    
+    title(sprintf('pval=%f', mdl.Coefficients.pValue(2)))
+
+end
+suptitle(sprintf('Distance Correlation, set %d', i_set))
+pause
 end
 
 
@@ -326,7 +371,7 @@ for i_set=1:nSets
     RPosNeg_pcm(i_set,:)=f_mnstd(rPosNeg_pcm);
     
     % Compute distance correlation
-    subj= subject(strcmp({subject.ID}, Networks(i_set).ID));
+    subj= subjects(strcmp({subjects.ID}, Networks(i_set).ID));
     triu_i=find(triu(ones(size(pcm,1)),1)~=0);
     dist=pdist2(subj.gridCoords(1:end,:),subj.gridCoords(:,1:end));
     dist=dist(triu_i); 
@@ -349,6 +394,34 @@ NetworkTable=table({Networks.ID}', {Networks.type}', {Networks.block}', Density,
     'RposNeg_pcm', 'corricov', 'corrpcm'});
 writetable(NetworkTable,'Data/networkTable.csv')
 
+%%
+figure(5)
+subplot(121)
+histogram(Density(1:40,1),10)
+title('Average ictal PCM density')
+subplot(122)
+histogram(Density(41:end,1),10)
+title('Average preictal PCM density')
+
+%% Generate Figures
+%close all
+
+% PCM figure
+figure(1); set(gcf,'Name', 'pcm')
+imagesc(Networks(1).pcm(:,:,6))
+colormap('winter'); colorbar
+xlabel('nodes'); ylabel('nodes');
+
+% methods metric
+figure(3); clf; set(gcf,'Name', 'methodsMetric')
+subplot(10,1,[1:8])
+imagesc(Metric_matrices(27).aveCtrl)
+xlabel('nodes'); ylabel('nodes');
+colormap('winter'); colorbar
+subplot(10,1,10)
+imagesc(Partitions(27).states) 
+colormap(gca, cols(1:3,:));
+xticklabels(''); yticklabels('');
 
 
 

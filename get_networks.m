@@ -4,15 +4,15 @@
 % time chunks of size Lwin. 
 
 %load('Data/dataSets_clean.mat'); 
-dataSet= clean_EC_data;
+dataSet= dataSets_clean;
 Null='';
 %load('Data/nullData.mat'); dataSet= nullData; 
 %load('Data/subjects.mat')
 
 %%
 
-Networks=struct();
-for i_set= 1:length(dataSet)
+%Networks=struct();
+for i_set=1:length(dataSet)
     fprintf('inds %d\n',i_set)
     %try
 
@@ -45,6 +45,9 @@ for i_set= 1:length(dataSet)
     Networks(i_set).rhos=lambdas;
     Networks(i_set).pcm=nets; % Note, thess are actually PCMs
     Networks(i_set).icov=icovRho;
+    
+    Networks(i_set).config_pcm=[];
+    Networks(i_set).config_icov=[];
 
     for t=1:TT
          pcm=nets(:,:,t);

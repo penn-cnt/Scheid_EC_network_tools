@@ -2,9 +2,9 @@
 
 Null=''; % set to 'Null' to perform on null model, and '' otherwise
 
-load(sprintf('Data/%sPartitions.mat', Null))
-eval(['Partitions=', Null, 'Partitions;']) 
-nSets=length(Partitions);
+% load(sprintf('Data/%sPartitions.mat', Null))
+% eval(['Partitions=', Null, 'Partitions;']) 
+% nSets=length(Partitions);
 
 for i_set=1:nSets
     p=Partitions(i_set);
@@ -59,5 +59,5 @@ end
 eval([Null,'Partitions=Partitions;'])
 save(sprintf('Data/%sPartitions.mat', Null), sprintf('%sPartitions', Null),...
     'nStates')
-
+disp('done')
 clear tran u f idx l p st nUnique top3 stateRuns runstates runLength 

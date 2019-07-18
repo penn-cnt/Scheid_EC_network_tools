@@ -1,12 +1,14 @@
 % Get Energy
-% load('Data/dataSets_clean')
+load('Data/dataSets_clean')
 load('Data/Partitions')
 load('Data/Networks')
-%load('Data/Metric_Matrices')
-%load('Data/State_Metrics')
+load('Data/State_Metrics')
 
 i_ict=find(strcmp({dataSets_clean.type},'ictal'));
 nSets=size(Networks,2);
+
+cols=[[75,184,166];[255,168,231]; [36,67,152];[140,42,195];[121,29,38];[242,224,43];[74,156,85];...
+   [80,80,80]; [255,255,255]]/255;
 
 %% Part 1: Prepare Energy struct with initial and final values
 
@@ -24,7 +26,7 @@ freq=high_g;
 %line length function
 llfun=@(x)sum(abs(diff(x,[],2)),2);
 
-for i_set= 28
+for i_set= i_ict
     Net= Networks(i_set);
     p=Partitions(i_set);
     i_set
@@ -98,16 +100,15 @@ for i_set= 28
 end
 disp('done')
 
-
-%% Part 2: Find ideal parameters
+%% Part 2: Find ideal trajectory u* and optimal energy
 %load('Data/Energy.mat')
 
 % Energy Parameters to Test
 %power(10, linspace(-3, 2, 10)); 
-t_traj= linspace(0.006, 0.15, 10) %power(10, linspace(-3, log10(5), 10)) %log10 distribution b/w 1-10
+t_traj= linspace(0.006, 0.15, 10); %power(10, linspace(-3, log10(5), 10)) %log10 distribution b/w 1-10
 rho= power(10, linspace(-3, 2, 10)); % log10 distribution b/w 1-30
 
-for i_set=28 %i_ict(29:end)
+for i_set=differs(1:end/2) %i_ict(29:end)
     i_set
     Energy(i_set).t_traj=t_traj;
     Energy(i_set).rho=rho;
@@ -161,13 +162,33 @@ end
 save('Data/Energy.mat', 'Energy', 't_traj', 'rho', 'freq')
 disp('Energy Calc done')
 
+
+%% Part 3: Add state Energy to State_Metrics
+
+% Define optimal T and rho (use  functions below to work this out)
+t_opt=6;
+r_opt=6; 
+
+for i_set=i_ict
+    State_metrics(i_set).optEnergy=[];
+    State_metrics(i_set+length(i_ict)).optEnergy=[];
+    for s=1:3
+     State_metrics(i_set).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
+     State_metrics(i_set+length(i_ict)).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
+    end
+end
+
+tOpt=t_traj(t_opt);
+rOpt=rho(r_opt);
+save('Data/State_metrics.mat', 'State_metrics', 'tOpt', 'rOpt');
+
+disp('done')
 %% Visualization for zooming in 
 
 figure(3); clf
 i_set=38
 
-
-for s=3
+for s=1:3
 
 eng=Energy(i_set).(sprintf('s%dNodeEnergy',s));
 trajErr=Energy(i_set).(sprintf('s%dtrajErr', s));
@@ -224,19 +245,63 @@ end
 %% Find min and max of all error trajectories
 % Get min, get max, choose value in the middle
 
-min(min([Energy.T_min]))
-max(max([Energy.T_min]))
+engIdx=[Energy.T_min];
 
-% %% Add state Energy to State_Metrics
-% 
-% t_opt=4;
-% r_opt=5; 
-% 
-% for i_set=i_ict
-%     for s=1:3
-%      State_metrics(i_set).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
-%     end
-% end
+min(min(engIdx(1,:)))
+max(max(engIdx(1,:)))
 
+figure(2)
+clf;
+for i=1:10
+    hold on
+    histogram(t_traj(engIdx(i,:)),5)
+    mean(t_traj(engIdx(i,:)))
+end
+
+
+%% Quantify error percentile for each patient and state
+
+percentRank = @(YourArray, TheProbes) reshape( mean( bsxfun(@le,...
+    YourArray(:), TheProbes(:).') ) * 100, size(TheProbes) );
+
+mins=zeros(10,10,3);
+maxes=zeros(10,10,3);
+
+
+for t_opt= 1:10
+    for r_opt= 1:10
+        
+    allRanks=zeros(length(i_ict),3);
+    for i_set=i_ict
+        for s=1:3
+            % Average error across nodes
+            errs=squeeze(mean(Energy(i_set).(sprintf('s%dtrajErr',s))));
+           allRanks(i_set,s)=percentRank(errs(:,r_opt),errs(t_opt,r_opt));
+        end
+    end
+    
+    % Get min/max error across all siezures and states for param set
+    mn=min(allRanks);
+    mx=max(allRanks);
+   
+    
+    mins(t_opt, r_opt,:)=mn;
+    maxes(t_opt, r_opt,:)=mx;
+   
+    end  
+end
+
+
+figure(2)
+imagesc(min(mins, [], 3))
+caxis([0,100])
+title('maximum percentile')
+colorbar
+figure(1)
+clf
+imagesc(max(maxes, [], 3))
+caxis([0,100])
+title('maximum error percentile across all siezures and phases')
+colorbar
 
 
