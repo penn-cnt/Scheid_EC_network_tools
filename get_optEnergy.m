@@ -170,12 +170,17 @@ t_opt=6;
 r_opt=6; 
 
 for i_set=i_ict
-    State_metrics(i_set).optEnergy=[];
-    State_metrics(i_set+length(i_ict)).optEnergy=[];
-    for s=1:3
-     State_metrics(i_set).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
-     State_metrics(i_set+length(i_ict)).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
-    end
+%     State_metrics(i_set).optEnergy=[];
+%     State_metrics(i_set+length(i_ict)).optEnergy=[];
+%     eval(sprintf('State_metrics(i_set).%sZ=stAvg((%s-mean(%s(:)))/std(%s(:)));',m{1},m{1},m{1},m{1}));
+%     for s=1:3
+%      State_metrics(i_set).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
+%      State_metrics(i_set+length(i_ict)).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
+%     end
+    State_metrics(i_set).optEnergyZ=(State_metrics(i_set).optEnergy-mean(State_metrics(i_set).optEnergy(:)))/...
+        std(State_metrics(i_set).optEnergy(:));
+    State_metrics(i_set+length(i_ict)).optEnergyZ=(State_metrics(i_set).optEnergy-mean(State_metrics(i_set).optEnergy(:)))/...
+        std(State_metrics(i_set).optEnergy(:));
 end
 
 tOpt=t_traj(t_opt);
@@ -302,6 +307,8 @@ clf
 imagesc(max(maxes, [], 3))
 caxis([0,100])
 title('maximum error percentile across all siezures and phases')
+xticklabels(Energy(1).t_traj)
+yticklabels(strsplit(sprintf('%0.03f ',Energy(1).rho)))
 colorbar
 
 

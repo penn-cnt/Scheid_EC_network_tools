@@ -16,7 +16,7 @@ nTarget= 3;           % target Number of communities
 gamma_init=(0.8:.05:1.05); % initial resolution parameter range
 Qiter=100;            % number of mod. max iterations
 
-for i_set = 1:length(Networks)
+for i_set = [20,21,22,24]
     tic
     fprintf('inds %d\n',i_set)
     ctr=1; 

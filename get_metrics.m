@@ -10,7 +10,7 @@ eval(['Partitions=', Null, 'Partitions;']);
 
 nSets=length(Partitions);
 metric_matrices= struct(); 
-state_metrics=struct();
+State_metrics=struct();
 
 thresh=0.15;     % Threshold for transient/persistent mode selection
 dt=1;        %
@@ -22,9 +22,9 @@ for i_set=1:nSets
     Net= Networks(i_set);
     
     % Initialize metric structs
-    metric_matrices(i_set).ID= Net.ID; state_metrics(i_set).ID=Net.ID;    
-    metric_matrices(i_set).type= Net.type; state_metrics(i_set).type=Net.type; 
-    metric_matrices(i_set).block= Net.block; state_metrics(i_set).block=Net.block;
+    metric_matrices(i_set).ID= Net.ID; State_metrics(i_set).ID=Net.ID;    
+    metric_matrices(i_set).type= Net.type; State_metrics(i_set).type=Net.type; 
+    metric_matrices(i_set).block= Net.block; State_metrics(i_set).block=Net.block;
         
     config=  Net.config_pcm;
     icov=    Net.icov;
@@ -33,8 +33,9 @@ for i_set=1:nSets
     [N, ~, T]=       size(pcm);
    
    metrics={'globalCtrl', 'aveCtrl', 'modalCtrl', 'pModalCtrl', 'tModalCtrl',...
-       'strength', 'strengthPos', 'strengthNeg', 'skewness',...
-       'kurtosis', 'degree', 'clustering3'};
+       'strength', 'strengthPos', 'strengthNeg', ...        % Network metrics %
+       'skewness', 'kurtosis', 'degree', 'clustering3'}; %, ... % connection distribution %
+       %'spreadEig', 'skeweig'};                             % eigenstructure distribution %
     
    % Initialize average, modal metrics
    [globalCtrl, aveCtrl, modalCtrl, pModalCtrl, tModalCtrl,...
@@ -89,6 +90,23 @@ for i_set=1:nSets
        % Calculating signed clustering using Perugini's signed extension
        [C_pos,C_neg,Ctot_pos,Ctot_neg] = clustering_coef_wu_sign(pcm(:,:,t),3);
        clustering3(:,t)=C_pos; 
+       
+       
+       %%%%%%%%%%%%%%%%%%%%%%%%
+       %%%  Eigenstructure  %%%
+       %%%%%%%%%%%%%%%%%%%%%%%%
+       spreadEig(:,t)=eig(normA);
+       
+       % Calculating strength as sum of pos and abs(neg)
+       [nPos,nNeg,vpos,vneg]=strengths_und_sign(pcm(:,:,t));
+       strength(:,t)=(nPos'-nNeg');
+       strengthPos(:,t)=nPos;
+       strengthNeg(:,t)=nNeg;
+       
+       % Calculating signed clustering using Perugini's signed extension
+       [C_pos,C_neg,Ctot_pos,Ctot_neg] = clustering_coef_wu_sign(pcm(:,:,t),3);
+       clustering3(:,t)=C_pos; 
+
 
    end
     
@@ -97,15 +115,14 @@ for i_set=1:nSets
     stAvg= @(metric)cell2mat(arrayfun(@(x)mean(metric(:,st==x),2),...
         unique(st), 'UniformOutput', false)); 
     
+
     % Populate metric and state average structs
     for m=metrics
         eval(sprintf('metric_matrices(i_set).%s=%s;',m{1},m{1}));
-        eval(sprintf('state_metrics(i_set).%s=stAvg(%s);',m{1},m{1}));
+        eval(sprintf('State_metrics(i_set).%s=stAvg(%s);',m{1},m{1}));
+        % Get Zscore
+        eval(sprintf('State_metrics(i_set).%sZ=stAvg((%s-mean(%s(:)))/std(%s(:)));',m{1},m{1},m{1},m{1}));
     end
-
-    state_metrics(i_set).globalCtrlZ= stAvg(zscore(globalCtrl));
-    state_metrics(i_set).aveCtrlZ= stAvg(zscore(aveCtrl));
-    state_metrics(i_set).modalCtrlZ= stAvg(zscore(modalCtrl));
 end
 
 

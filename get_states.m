@@ -6,7 +6,7 @@ Null=''; % set to 'Null' to perform on null model, and '' otherwise
 % eval(['Partitions=', Null, 'Partitions;']) 
 % nSets=length(Partitions);
 
-for i_set=1:nSets
+for i_set=[20,21,22,24]
     p=Partitions(i_set);
     
     %Get assignments to three (or more) states
