@@ -2,15 +2,15 @@
 
 Null='' % set string to 'Null' if computing on null model, else set empty
 
-load(sprintf('Data/%sNetworks', Null))
-load(sprintf('Data/%sPartitions', Null))
-
-eval(['Networks=', Null, 'Networks;']);
-eval(['Partitions=', Null, 'Partitions;']);
+% load(sprintf('Data/%sNetworks', Null))
+% load(sprintf('Data/%sPartitions', Null))
+% 
+% eval(['Networks=', Null, 'Networks;']);
+% eval(['Partitions=', Null, 'Partitions;']);
 
 nSets=length(Partitions);
 metric_matrices= struct(); 
-State_metrics=struct();
+state_metrics=struct();
 
 thresh=0.15;     % Threshold for transient/persistent mode selection
 dt=1;        %
@@ -29,7 +29,7 @@ for i_set=1:nSets
     config=  Net.config_pcm;
     icov=    Net.icov;
     pcm=     Net.pcm;
-    sim=     Net.sim;
+    sim=     Net.wSim;
     [N, ~, T]=       size(pcm);
    
    metrics={'globalCtrl', 'aveCtrl', 'modalCtrl', 'pModalCtrl', 'tModalCtrl',...
@@ -95,7 +95,7 @@ for i_set=1:nSets
        %%%%%%%%%%%%%%%%%%%%%%%%
        %%%  Eigenstructure  %%%
        %%%%%%%%%%%%%%%%%%%%%%%%
-       spreadEig(:,t)=eig(normA);
+       %spreadEig(:,t)=eig(normA);
        
        % Calculating strength as sum of pos and abs(neg)
        [nPos,nNeg,vpos,vneg]=strengths_und_sign(pcm(:,:,t));
@@ -119,9 +119,9 @@ for i_set=1:nSets
     % Populate metric and state average structs
     for m=metrics
         eval(sprintf('metric_matrices(i_set).%s=%s;',m{1},m{1}));
-        eval(sprintf('State_metrics(i_set).%s=stAvg(%s);',m{1},m{1}));
+        eval(sprintf('state_metrics(i_set).%s=stAvg(%s);',m{1},m{1}));
         % Get Zscore
-        eval(sprintf('State_metrics(i_set).%sZ=stAvg((%s-mean(%s(:)))/std(%s(:)));',m{1},m{1},m{1},m{1}));
+        eval(sprintf('state_metrics(i_set).%sZ=stAvg((%s-mean(%s(:)))/std(%s(:)));',m{1},m{1},m{1},m{1}));
     end
 end
 

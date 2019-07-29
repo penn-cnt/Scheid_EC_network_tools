@@ -6,7 +6,7 @@ Null=''; % set to 'Null' to perform on null model, and '' otherwise
 % eval(['Partitions=', Null, 'Partitions;']) 
 % nSets=length(Partitions);
 
-for i_set=[20,21,22,24]
+for i_set=1:nSets
     p=Partitions(i_set);
     
     %Get assignments to three (or more) states
@@ -57,7 +57,7 @@ end
 %save('DataBackup/Partitions.mat', 'Partitions', 'nStates'); 
 
 eval([Null,'Partitions=Partitions;'])
-save(sprintf('Data/%sPartitions.mat', Null), sprintf('%sPartitions', Null),...
+save(sprintf('Data/%sWPartitions.mat', Null), sprintf('%sPartitions', Null),...
     'nStates')
 disp('done')
 clear tran u f idx l p st nUnique top3 stateRuns runstates runLength 

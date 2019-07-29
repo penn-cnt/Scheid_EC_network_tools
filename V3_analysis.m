@@ -48,6 +48,7 @@ scatterhist(meds_ict(:),lens_ict(:),'Group',labels','Kernel','on','Location','No
     'Direction','out','Color',cols(1:3,:),'LineStyle',{'-','-','-'},...
     'LineWidth',[2,2,2],'Marker','ddd','MarkerSize',[5,5,5]);
 ylabel(''); xlabel('');
+title('ictal')
 set(gca,'xaxisLocation','bottom', 'yaxislocation', 'left', 'fontsize', 18)
 
 figure(2); clf; hold on
@@ -55,6 +56,7 @@ scatterhist(meds_preict(:),lens_preict(:),'Group',labels','Kernel','on','Locatio
     'Direction','out','Color',cols(1:3,:),'LineStyle',{'-','-','-'},...
     'LineWidth',[2,2,2],'Marker','ddd','MarkerSize',[5,5,5]);
 ylabel(''); xlabel('');
+title('preictal')
 set(gca,'xaxisLocation','bottom', 'yaxislocation', 'left','fontsize', 18)
 
 %% Show table of mean and std statistics for ictal and preictal states
@@ -114,7 +116,7 @@ for i_set=i_ict
 end
 %%
 
-for i_set=14:19
+for i_set=1:nSets
     i_set
     figure(3); clf; 
     p= Partitions(i_set);
@@ -154,7 +156,7 @@ for i_set=14:19
     Fs= dataSets_clean(i_set).Fs;
     data= dataSets_clean(i_set).data'+(1:1000:1000*(N));
     plot((0:length(data)-1)/Fs,data);
-    %stem([(diff(st)~=0)]*1000*N,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
+    stem([(diff(st)~=0)]*1000*N,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
     title('Signal'); axis tight
 
     % Config matrix
@@ -166,7 +168,7 @@ for i_set=14:19
     
     % Similarity Matrix
     subplot(n,m,(n*m)); hold on
-    imagesc(Networks(i_set).sim)
+    imagesc(Networks(i_set).wSim)
     set(gca,'colorscale','log')
     stem((diff(st)~=0)*T,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
     title('Sim'); axis tight 
@@ -188,7 +190,7 @@ display='off';
 analysis=struct();
 diffs=struct();
 glob=struct();
-metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'optEnergy', 'strength', 'clustering3'};
+metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength', 'clustering3'}; %'optEnergy'
 
 for i_set=1:nSets
     
@@ -229,9 +231,9 @@ end
 disp('done')
 %% Display results of Friedman's test individually
 ctr=1;
-alpha=0.05; 
+alpha=0.01; 
 
-metrics={'aveCtrl', 'modalCtrl','optEnergy', 'strength', 'clustering3'}
+metrics={'aveCtrl', 'modalCtrl', 'strength', 'clustering3'}
 
 
 for type=[i_ict', i_preict']
@@ -305,7 +307,8 @@ for type={'i_ict', 'i_preict'} %, 'i_null'
         else; maxLim=sorted(find(sorted<maxLim, 1, 'last')); end
         
         h=boxplot(eval(['glob',metrics{i},'(', type{1},',:)']), ...
-            {'Phase 1', 'Phase 2', 'Phase 3'}, 'Colors', cols(1:3,:));%, ...
+            {'Phase 1', 'Phase 2', 'Phase 3'}, 'Colors', cols(1:3,:), ...
+            'Symbol', 'x');%, ...
            % 'dataLim', [minLim, maxLim]);
         set(h,{'linew'},{2})
         ylabel(metrics{i})

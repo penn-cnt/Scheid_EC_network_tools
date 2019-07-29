@@ -16,7 +16,33 @@ nTarget= 3;           % target Number of communities
 gamma_init=(0.8:.05:1.05); % initial resolution parameter range
 Qiter=100;            % number of mod. max iterations
 
-for i_set = [20,21,22,24]
+% Weight similarity matrices with guassian weighting 
+% for i_set=1:78
+% N=Networks(i_set).sim;
+% y2 = pdf('Normal',[1:length(N)],0,6);
+% toadd=y2*max(N(:))/max(y2)*.2;
+% toadd=[flip(toadd(2:end)), toadd];
+% 
+% shifted=[];
+% for i=1:length(N)
+%     shifted(i,:)=circshift(toadd,i-1);
+% end
+% shifted=shifted(:,1+(end-length(N)):end);
+% 
+% figure(1)
+% imagesc(N)
+% 
+% figure(2)
+% imagesc(shifted)
+% 
+% figure(3)
+% imagesc(N+shifted)
+% 
+% Networks(i_set).wSim=(N+shifted).*~eye(length(N)); 
+% 
+% end
+
+for i_set = 69:nSets
     tic
     fprintf('inds %d\n',i_set)
     ctr=1; 
@@ -31,7 +57,7 @@ for i_set = [20,21,22,24]
     Partitions(i_set).gamma=gamma;
     
     gamma_inds=1:length(gamma);  % Initial gamma Inds
-    sim=Networks(i_set).sim;
+    sim=Networks(i_set).wSim;
     N=size(sim,1);
 
    %Initialize PartitionRho Struct
@@ -139,7 +165,7 @@ for i_set = [20,21,22,24]
 end
 
 eval([Null, 'Partitions= Partitions;']);
-save(sprintf('Data/%sPartitions.mat', Null), sprintf('%sPartitions', Null))
+save(sprintf('Data/%sWPartitions.mat', Null), sprintf('%sPartitions', Null))
 
 %save('Data/Partitions.mat', 'Partitions');
 
