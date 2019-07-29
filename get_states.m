@@ -31,7 +31,7 @@ for i_set=1:nSets
     % Get total size, max run length, and median of each state
     stateLens=arrayfun(@(x)sum(st==x), u)./l*100;
     stateMedian=(arrayfun(@(x)round(median(find(st==x))), u)-.5)./l;
-    runLen=arrayfun(@(x)max(runLength(runstates==x)), u);
+    [runLen, mxRunIdx]=arrayfun(@(x)max(runLength(runstates==x)), u);
     
     % Select top 3 states
     [~,idx]=sort(stateLens,'descend'); %idx of top states 
@@ -44,8 +44,18 @@ for i_set=1:nSets
     tran(topStates(fin))=[1:nStates]; % Transformed ordering of states 
     if length(u)>nStates; tran(tran==0)=u(nStates+1:end); end
     [~, inv]=sort(tran);  % inverted state transformation 
+    
+    % get contiguous states (maximum runs)
+    contigSt=zeros(1,length(st));
+    bnds= [[1,cumsum(stateRuns(2,1:end-1))+1]', cumsum(stateRuns(2,:))']; % run bounds
+    for x=u
+        bnd=bnds(stateRuns(1,:)==x,:); 
+        mxbnd=bnd(mxRunIdx(x),:);
+        contigSt(mxbnd(1):mxbnd(2))=tran(x);
+    end
 
-    Partitions(i_set).states=tran(st(:));
+    Partitions(i_set).states=tran(st(:));    
+    Partitions(i_set).contigStates=contigSt(:); 
     Partitions(i_set).stateLens=stateLens(inv(1:nStates));
     Partitions(i_set).stateMedian=stateMedian(inv(1:nStates))*100;
     Partitions(i_set).runLen=runLen(inv(1:nStates))./l*100;
@@ -53,8 +63,6 @@ for i_set=1:nSets
     Partitions(i_set).stateRuns=stateRuns;
 
 end
-
-%save('DataBackup/Partitions.mat', 'Partitions', 'nStates'); 
 
 eval([Null,'Partitions=Partitions;'])
 save(sprintf('Data/%sWPartitions.mat', Null), sprintf('%sPartitions', Null),...

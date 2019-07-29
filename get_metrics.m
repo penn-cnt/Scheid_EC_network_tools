@@ -110,12 +110,12 @@ for i_set=1:nSets
 
    end
     
-    % Define function to compute state averages
-    st= Partitions(i_set).states;
+    % Define function to compute state averages, compute averages from
+    % longest run of each state type though. 
+    st= Partitions(i_set).contigStates;
     stAvg= @(metric)cell2mat(arrayfun(@(x)mean(metric(:,st==x),2),...
         unique(st), 'UniformOutput', false)); 
     
-
     % Populate metric and state average structs
     for m=metrics
         eval(sprintf('metric_matrices(i_set).%s=%s;',m{1},m{1}));
@@ -123,6 +123,7 @@ for i_set=1:nSets
         % Get Zscore
         eval(sprintf('state_metrics(i_set).%sZ=stAvg((%s-mean(%s(:)))/std(%s(:)));',m{1},m{1},m{1},m{1}));
     end
+   
 end
 
 
