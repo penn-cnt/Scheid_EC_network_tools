@@ -4,45 +4,31 @@
 
 Null=''; 
 
-% load(sprintf('Data/%sNetworks.mat', Null))
+load(sprintf('Data/%sNetworks.mat', Null))
 %load('Data/Partitions.mat')
 
-%Partitions=struct(); 
+Partitions=struct(); 
 %eval(['Networks=',Null,'Networks;']); 
 
 maxIter= 5;           % max # of iterations
 nTarget= 3;           % target Number of communities
 
 gamma_init=(0.8:.05:1.05); % initial resolution parameter range
-Qiter=100;            % number of mod. max iterations
+Qiter=50;            % number of mod. max iterations
 
-% Weight similarity matrices with guassian weighting 
-% for i_set=1:78
-% N=Networks(i_set).sim;
-% y2 = pdf('Normal',[1:length(N)],0,6);
-% toadd=y2*max(N(:))/max(y2)*.2;
-% toadd=[flip(toadd(2:end)), toadd];
-% 
-% shifted=[];
-% for i=1:length(N)
-%     shifted(i,:)=circshift(toadd,i-1);
-% end
-% shifted=shifted(:,1+(end-length(N)):end);
-% 
-% figure(1)
-% imagesc(N)
-% 
-% figure(2)
-% imagesc(shifted)
-% 
-% figure(3)
-% imagesc(N+shifted)
-% 
-% Networks(i_set).wSim=(N+shifted).*~eye(length(N)); 
-% 
-% end
+% Weight similarity matrices with linear weighting 
+for i_set=1:78
+    N=Networks(i_set).sim;
+    NN=zeros(length(N)); 
+    for i =1:length(N)
+        for j =1:length(N)
+            NN(i,j)=N(i,j)*((1 - abs(i-j)/length(N))^2);    
+        end
+    end
+    Networks(i_set).wSim=NN; 
+end
 
-for i_set = 69:nSets
+for i_set = 1:nSets
     tic
     fprintf('inds %d\n',i_set)
     ctr=1; 
