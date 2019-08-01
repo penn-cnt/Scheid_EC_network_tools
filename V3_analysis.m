@@ -16,10 +16,10 @@ eval(['Partitions=', Null, 'Partitions'])
 eval(['Metric_matrices=', Null, 'Metric_matrices'])
 eval(['State_metrics=', Null, 'State_metrics'])
 
-if strcmp(Null,'Null')
-    load('Data/nullData.mat')
-    dataSets_clean=nullData;
-end
+% if strcmp(Null,'Null')
+%     load('Data/nullData.mat')
+%     dataSets_clean=nullData;
+% end
 
 addpath(genpath('~/Documents/CODE/'))
 
@@ -65,6 +65,12 @@ mn_med=mean(meds_ict);std_med=std(meds_ict);
 mn_lenpi=mean(lens_preict);std_lenpi=std(lens_preict);
 mn_medpi=mean(meds_preict);std_medpi=std(meds_preict);
 
+avg_sz_length=mean(cellfun(@(x)size(x,3), {Networks(i_ict).pcm}))
+std_sz_length=std(cellfun(@(x)size(x,3), {Networks(i_ict).pcm}))
+
+avg_sz_N=mean(cellfun(@(x)size(x,2), {Networks(i_ict).pcm}))
+std_sz_N=std(cellfun(@(x)size(x,2), {Networks(i_ict).pcm}))
+
 stateTable=table([mn_len', std_len'], [mn_med', std_med'], [mn_lenpi', std_lenpi'], [mn_medpi', std_medpi'],...
     'VariableNames', {'ictal_longest_run', 'ictal_med_value','preictal_longest_run',...
     'preictal_med_value'})
@@ -73,6 +79,8 @@ writetable(stateTable,'Data/stateTable.csv')
 clear mn_len mn_med mn_lenpi mn_medpi labels x_ict y_ict x_preict y_preict meds_preict lens_preict ...
     meds_ict lens_ict
 
+
+
             %% Metric Trends (individual) %%
 
 % Select metrics to plot
@@ -80,7 +88,7 @@ n=2; m=4;
 all=false; % show both preictal and ictal
 metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl'}; 
 %metrics={'degree', 'aveCtrl', 'modalCtrl'}; 
-%%
+%% Display Kurtosis
 for i_set=i_ict
     figure(1)
     clf;
@@ -153,9 +161,17 @@ for i_set=1:nSets
 
     % Display signal
     subplot(n,m,(n*m)-2); hold on
-    Fs= dataSets_clean(i_set).Fs;
-    data= dataSets_clean(i_set).data'+(1:1000:1000*(N));
-    plot((0:length(data)-1)/Fs,data);
+    Fs=round( dataSets_clean(i_set).Fs);
+    if strcmp(dataSets_clean(i_set).type, 'ictal')
+        stDiff=round(dataSets_clean(i_set).UEOStart-dataSets_clean(i_set).EECStart);
+        data= dataSets_clean(i_set).data(:,1+Fs*stDiff:end)';
+    else
+        stDiff=round(dataSets_clean(i_set-39).UEOStart-dataSets_clean(i_set-39).EECStart);
+        data= [dataSets_clean(i_set).data(:,1+2*(Fs*stDiff):end), dataSets_clean(i_set-39).data(:,1:Fs*stDiff)]';
+    end
+    sozGrid=find(dataSets_clean(i_set).sozGrid);
+    plot((0:length(data)-1)/Fs,data+(1:1000:1000*(N)));
+    plot((0:length(data)-1)/Fs,data(:, sozGrid)+1000*(sozGrid-1)', 'c');
     stem([(diff(st)~=0)]*1000*N,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
     title('Signal'); axis tight
 
@@ -176,21 +192,47 @@ for i_set=1:nSets
     figure(4)
     %set(gca, 'Position', get(gca, 'Position')+[0,.05,0,0])
     imagesc(st) 
-    colormap(gca, cols(1:3,:));
+    colormap(gca, cols(unique(st),:));
     set(gca, 'YTick', [], 'fontsize', 18)
 
     pause
 end
 
-%% Is there a difference between states?
+%% Show SOZ in data
+for i_set=a
+    i_set
+    st= Partitions(i_set).states;
+    figure(8); clf; hold on
+        Fs=round( dataSets_clean(i_set).Fs);
+        d=dataSets_clean(i_set);
+    if strcmp(dataSets_clean(i_set).type, 'ictal')
+        stDiff=round(dataSets_clean(i_set).UEOStart-dataSets_clean(i_set).EECStart);
+        data= dataSets_clean(i_set).data(:,1+Fs*stDiff:end)';
+    else
+        stDiff=round(dataSets_clean(i_set-39).UEOStart-dataSets_clean(i_set-39).EECStart);
+        data= [dataSets_clean(i_set).data(:,1+2*(Fs*stDiff):end), dataSets_clean(i_set-39).data(:,1:Fs*stDiff)]';
+    end
+    N=size(data,2);
+    figure(9); clf; hold on
+    sozGrid=find(dataSets_clean(i_set).sozGrid);
+    plot((0:length(data)-1)/Fs,data+(1:1000:1000*(N)));
+    if ~isempty(sozGrid)
+        plot((0:length(data)-1)/Fs,data(:, sozGrid)+1000*(sozGrid-1)', 'c');
+    end
+    stem([(diff(st)~=0)]*1000*N,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
+    title(sprintf('HUP %s, %d', d.ID, d.block)); axis tight
+    pause
+end
+
+%% Is there a difference between states? (creates glob,c_i_preict_glob, i_ict_glob)
 
 ctype='bonferroni';
 display='off';
 
 analysis=struct();
 diffs=struct();
-glob=struct();
-metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength', 'clustering3'}; %'optEnergy'
+glob=struct(); c_i_preict_glob=struct(); c_i_ict_glob=struct();
+metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
 
 for i_set=1:nSets
     
@@ -200,6 +242,12 @@ for i_set=1:nSets
     end
     
     for i=1:length(metrics)
+        
+        if size(s.(metrics{i}),1)==1
+            eval(sprintf('glob.%s(i_set,:)=s.%s(1:3);', metrics{i}, metrics{i})); 
+            continue
+        end
+            
         % Perform Friedman's analysis & post hoc (non parametric rank test)
         eval(sprintf('[~,~,stats_%s]=friedman(s.%s(:,1:3),1,display);', metrics{i}, metrics{i}));
         eval(sprintf('[c_%s,m_%s]= multcompare(stats_%s, ''ctype'', ctype, ''display'', display);', ...
@@ -209,7 +257,8 @@ for i_set=1:nSets
         eval(sprintf('analysis(i_set).%s=c_%s(:,6);',metrics{i}, metrics{i}));
         eval(sprintf('diffs%s(i_set,:)=c_%s(:,4);', metrics{i}, metrics{i}));
         % Save average of ZSCORED data
-        eval(sprintf('glob%s(i_set,:)=mean(s.%sZ(:,1:3));', metrics{i}, metrics{i})); 
+        eval(sprintf('glob.%s(i_set,:)=mean(s.%sZ(:,1:3));', metrics{i}, metrics{i})); 
+        
     end
 end
 
@@ -219,21 +268,21 @@ display='off';
 for i=1:length(metrics)
     
     % ictal 
-    eval(sprintf('[~,~,stats_g%s]=friedman(glob%s(i_ict,1:3),1,display)', metrics{i},  metrics{i}))
-    eval(['[c_i_ict_glob',metrics{i},',m_ict_g',metrics{i},...
+    eval(sprintf('[~,~,stats_g%s]=friedman(glob.%s(i_ict,1:3),1,display)', metrics{i},  metrics{i}))
+    eval(['[c_i_ict_glob.',metrics{i},',m_ict_g',metrics{i},...
         ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
     %preicatl
-    eval(sprintf('[~,~,stats_g%s]=friedman(glob%s(i_preict,1:3),1,display)', metrics{i},  metrics{i}));
-    eval(['[c_i_preict_glob',metrics{i},',m_ict_g',metrics{i},...
+    eval(sprintf('[~,~,stats_g%s]=friedman(glob.%s(i_preict,1:3),1,display);', metrics{i},  metrics{i}));
+    eval(['[c_i_preict_glob.',metrics{i},',m_ict_g',metrics{i},...
         ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
 end
     
 disp('done')
 %% Display results of Friedman's test individually
 ctr=1;
-alpha=0.01; 
+alpha=.0005; 
 
-metrics={'aveCtrl', 'modalCtrl', 'strength', 'clustering3'}
+metrics={'aveCtrl', 'modalCtrl','optEnergy'}
 
 
 for type=[i_ict', i_preict']
@@ -264,6 +313,7 @@ for type=[i_ict', i_preict']
     yticklabels(strcat({Metric_matrices(type).ID}', {' '}, blk));
     xticks([2:3:nMeas*3-1])
     xticklabels(metrics)
+    set(gca,'TickLabelInterpreter','none')
     stem(3*[1:nMeas]+.5,ones(1,nMeas)*size(met,1),...
         'Marker', 'none', 'lineWidth', 0.5, 'color', 'black')
     title({'Significant effect of seizure state on metric'})
@@ -272,13 +322,13 @@ for type=[i_ict', i_preict']
     else; suptitle('preictal')
     end
     %'1-2, 1-3, 2-3'
-    axis tight
+%     axis tight
 %     yyaxis right
 %     ylim([1,nSamp])
 %     yticks((1:nSamp))
-    %yticklabels({numSOZ(sz_pairs(:,1))'./numChannels(sz_pairs(:,1))'*100});
-    %yticklabels(sprintf('%d/%d\n', [numSOZ(i_ict)',numChannels(i_ict)']'))
-    %ylabel('#SOZ nodes/ # Channels')
+%     yticklabels({numSOZ(sz_pairs(:,1))'./numChannels(sz_pairs(:,1))'*100});
+%     yticklabels(sprintf('%d/%d\n', [numSOZ(i_ict)',numChannels(i_ict)']'))
+%     ylabel('#SOZ nodes/ # Channels')
     xlim([0.5, Inf])
     ctr= ctr+1
 end
@@ -286,16 +336,17 @@ disp('done')
 %% Group Level Trends Ictal preictal, and null model
 
 ctr=6;
-alpha=0.005
+alpha=0.05
 
-metrics={ 'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'}; %'optEnergy'};
+metrics={ 'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
+%metrics={'strength'}
 for type={'i_ict', 'i_preict'} %, 'i_null'
     figure(ctr); clf;
     for i=1:length(metrics)
         subplot(1,length(metrics),i);
         hold on
-        outs=sort(eval(['glob',metrics{i}, '(isoutlier(glob',metrics{i},'))']));
-        sorted=sort(eval(['glob', metrics{i}, '(:)']));
+        outs=sort(eval(['glob.',metrics{i}, '(isoutlier(glob.',metrics{i},'))']));
+        sorted=sort(eval(['glob.', metrics{i}, '(:)']));
         
         % Set datalimits if outliers are > 2 std away
         maxLim=outs(find(zscore(outs)>2, 1, 'first')); 
@@ -306,15 +357,16 @@ for type={'i_ict', 'i_preict'} %, 'i_null'
         if isempty(maxLim); maxLim= Inf; 
         else; maxLim=sorted(find(sorted<maxLim, 1, 'last')); end
         
-        h=boxplot(eval(['glob',metrics{i},'(', type{1},',:)']), ...
+        h=boxplot(eval(['glob.',metrics{i},'(', type{1},',:)']), ...
             {'Phase 1', 'Phase 2', 'Phase 3'}, 'Colors', cols(1:3,:), ...
             'Symbol', 'x');%, ...
            % 'dataLim', [minLim, maxLim]);
         set(h,{'linew'},{2})
-        ylabel(metrics{i})
+        ylabel([metrics{i}, ' zscore'])
         title(metrics{i})
-        cs=eval(['c_',type{1},'_glob',metrics{i}]);
+        cs=eval(['c_',type{1},'_glob.',metrics{i}]);
         sigstar(num2cell(cs(cs(:,6)<=alpha,[1:2]),2));
+        %ylim([min(eval(['glob.',metrics{i},'(:)']))*1.1, max(eval(['glob.',metrics{i},'(:)'])*1.2)])
     end
     suptitle([type{1}(3:end), 'al'])
     ctr= ctr+2;
@@ -322,15 +374,17 @@ end
 
 %% Is there a correlation with distance to SOZ?
 clf
-metrics={'aveCtrl', 'modalCtrl', 'optEnergy', 'tModalCtrl','pModalCtrl', 'strength'};
+metrics={'optEnergy'} %aveCtrl', 'modalCtrl', 'optEnergy', 'tModalCtrl','pModalCtrl', 'strength'};
 sozCorr=Inf(39, 3);
 sozCorrP=Inf(39,3);
 figure(1)
-for i_set=i_preict
+for i_set=i_ict
     i_set
-    met=State_metrics(i_set).strength;
+    met1=State_metrics(i_set).optEnergy;
+    met2=State_metrics(i_set).modalCtrl;
 
-    if isempty(avgDist{i_set-39})
+    if isempty(avgDist{i_set})
+        disp('skipping')
         continue
     end
     
@@ -340,12 +394,20 @@ for s=1:3
     subplot(1,3,s)
     hold on
     % Get correlation between soz nodes and others per state
-    [cor, pval]=corr(met(:,s), avgDist{i_set-39});
-    scatter(met(:,s), avgDist{i_set-39});
-    scatter(met(soz,s), avgDist{i_set-39}(soz), 'r');
-    tbl=table(met(:,s), avgDist{i_set-39});
+%     [cor, pval]=corr(met(:,s), avgDist{i_set});
+%     scatter(avgDist{i_set}, met(:,s));
+%     scatter(avgDist{i_set}(soz),met(soz,s), 'r');
+%     tbl=table(avgDist{i_set},met(:,s));
+%     mdl = fitlm(tbl,'linear');
+%     plot(avgDist{i_set},mdl.Fitted); 
+
+    [cor, pval]=corr(met1(:,s), met2(:,s));
+    scatter(met1(:,s), met2(:,s));
+    scatter(met1(soz,s),met2(soz,s), 'r');
+    tbl=table(met1(:,s), met2(:,s));
     mdl = fitlm(tbl,'linear');
-    plot(met(:,s),mdl.Fitted); 
+    %plot(met1(:,s),mdl.Fitted); 
+
     title(sprintf('pval=%0.3f, R^2=%0.3f', mdl.Coefficients.pValue(2), mdl.Rsquared.Adjusted))
     xlabel('metricVal'); ylabel('Dist')
     sozCorr(i_set, s)=cor;
@@ -356,39 +418,50 @@ suptitle(sprintf('Avg. Ctrl. SOZ distance corr, %s %d', State_metrics(i_set).ID,
 %pause
 end
 
+%%
 figure(2)
 imagesc((sozCorrP<0.05))%.*(sozCorr>0))
+blk=cellfun(@num2str, {Metric_matrices(i_ict).block}', 'UniformOutput', false);
+yticklabels(strcat({Metric_matrices(i_ict).ID}', {' '}, blk));
+yticks([1:39])
+set(gca,'TickLabelInterpreter','none')
 % figure(3)
 % imagesc((sozCorrP<0.05).*(sozCorr<0))
 
-%% View Nodes and Values %%
+%% View Nodes and Values spatially  %%
 clf;
-metrics={'aveCtrl', 'modalCtrl', 'pModalCtrl'};
+metrics={'aveCtrl'};
 cmap=colormap; 
 for i_set=1:39
+    figure(1)
+    clf; hold on
     if isempty(dataSets_clean(i_set).sozGrid)
         continue
     end
     for m=1:length(metrics)
         st=State_metrics(i_set).(metrics{m});
+        %st=abs(State_metrics(i_set).(metrics{m})-State_metrics(i_set+39).(metrics{m})(:,1));
         c_met=1+reshape(round(63*rescale(st(:))), size(st));
         clims=[min(st(:)), max(st(:))];
         X=dataSets_clean(i_set).gridCoords(:,1);
         Y=dataSets_clean(i_set).gridCoords(:,2);
         for s=3:-1:1
-            subplot(3,length(metrics),((m-1)*3+s))
+            subplot(length(metrics),3,((m-1)*3+s))
             colormap parula
             hold on
-            scatter(X,Y,c_met(:,s)+70, st(:,s), 'filled')
-            scatter(X(dataSets_clean(i_set).sozGrid), ...
-                Y(dataSets_clean(i_set).sozGrid),100, 'r')
+            scatter(X,Y,c_met(:,s)+80, st(:,s), 'filled')
+            scatter(X(EnergyMetric(i_set).aveCtrl_NOI(:,s)), ...
+                 Y(EnergyMetric(i_set).aveCtrl_NOI(:,s)),100, 'r')            
+%              scatter(X(dataSets_clean(i_set).sozGrid), ...
+%                  Y(dataSets_clean(i_set).sozGrid),100, 'r')
             xticklabels([]); yticklabels([])
             xlim([.5,8.5]); ylim([.5,8.5]);
             xlabel(sprintf('phase %d', s))
             caxis(clims)
-            if s==3; colorbar; end
+            ylabel(metrics{m})
+            %if s==3; colorbar; end
         end
-        ylabel(metrics{m})
+        
     end
     suptitle(sprintf('Spatial Metrics for %s, block %d', dataSets_clean(i_set).ID, dataSets_clean(i_set).block))
     pause
@@ -511,6 +584,193 @@ subplot(122)
 histogram(RPosNeg_pcm(40:end,1),10)
 title('preictal')
 suptitle('average positive/negative edge ratio')
+
+
+%% Permutation test Method 1: See if SOZ nodes are relevant
+
+percentRank = @(YourArray, TheProbes) reshape( mean( bsxfun(@le,...
+    YourArray(:), TheProbes(:).') ) * 100, size(TheProbes) );
+
+metrics={'optEnergy','aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength'}
+nperms=2000;  %number of 
+ 
+sozRanks=struct(); 
+disp('Calculating sozRanks...')
+
+for i_set=i_ict
+    i_set
+    % Grab SOZ nodes from pre ict and ictal
+    if isempty(dataSets_clean(i_set).sozGrid); continue; end
+    soz=dataSets_clean(i_set).sozGrid; 
+    if sum(soz)==0; continue; end
+    
+    % Get nullset
+    nsoz=sum(soz); 
+    nullset=find(~soz); 
+    i_perm=zeros(nperms, nsoz);
+    for i=1:nperms
+        i_perm(i,:)=nullset(randperm(sum(~soz),nsoz));
+    end
+
+    d=dataSets_clean(i_set); 
+    st= Partitions(i_set).states;
+    %figure(1); clf; hold on
+        Fs=round( dataSets_clean(i_set).Fs);
+    if strcmp(dataSets_clean(i_set).type, 'ictal')
+        stDiff=round(dataSets_clean(i_set).UEOStart-dataSets_clean(i_set).EECStart);
+        data= dataSets_clean(i_set).data(:,1+Fs*stDiff:end)';
+    else
+        stDiff=round(dataSets_clean(i_set-39).UEOStart-dataSets_clean(i_set-39).EECStart);
+        data= [dataSets_clean(i_set).data(:,1+2*(Fs*stDiff):end), dataSets_clean(i_set-39).data(:,1:Fs*stDiff)]';
+    end
+    N=size(data,2);
+    
+%     figure(1); clf; hold on
+      sozGrid=find(dataSets_clean(i_set).sozGrid);
+%     plot((0:length(data)-1)/Fs,data+(1:1000:1000*(N)));
+%     if ~isempty(sozGrid)
+%         plot((0:length(data)-1)/Fs,data(:, sozGrid)+1000*(sozGrid-1)', 'c');
+%     end
+%     stem([(diff(st)~=0)]*1000*N,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
+%     title('Signal'); axis tight
+
+    for m=metrics
+%         figure(3); clf;
+        for s=1:3
+        % Difference between ictal and preictal phase
+            %diffs=State_metrics(i_set).(m{1})(:,s)-State_metrics(i_set+39).(m{1})(:,1);
+            diffs=State_metrics(i_set).(m{1})(:,s); 
+            soz_diffs= diffs(soz);
+            dist_diffs=diffs(i_perm)';
+
+            % Get absolute value of sum
+            soz_diffs=mean(abs(soz_diffs),1); 
+            dist_diffs=mean(abs(dist_diffs),1); 
+                        
+%             subplot(1,3,s)
+%             hold on
+%             histogram(dist_diffs)
+%             stem(quantile(dist_diffs, [.05,.25,.5,.75,.95]), ones(1,5)*100, 'linewidth', 2)
+%             stem(soz_diffs, 100, 'linewidth', 2)
+              sozRanks(i_set).(m{1})(s)=percentRank(dist_diffs, soz_diffs);
+        end   
+%         suptitle(sprintf('%s, HUP %s, siezure %d', m{1}, d.ID,d.block))
+        %pause
+        
+    end
+
+end
+disp('done with sozRanks calculation')
+
+%% Display permutation test result
+a=[1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    25    26    28];
+
+% for each metric
+metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength'}
+figure(2); clf; 
+figure(3); clf;
+for m=1:length(metrics)
+    figure(2)
+    subplot(1,length(metrics), m)
+    pcnts=[sozRanks.(metrics{m})];
+    sumSig=sum(pcnts>95)+sum(pcnts<5);
+    scatter(repmat([1:3],1,18)+normrnd(0,.05, [1,54]),  pcnts, 60, repmat(parula(18),3,1), 'filled')
+    title(sprintf('%s, %d', metrics{m}, sumSig))
+    xlim([.5,3.5])
+    ylim([-5, 105])
+    xticklabels({'Phase1', 'Phase 2', 'Phase 3'})
+    xtickangle(20)
+    hline(5)
+    hline(95)
+    
+    figure(3)
+    subplot(1,length(metrics), m)
+    imagesc(reshape([sozRanks.(metrics{m})],3,18)'>95)
+    yticks([1:18])
+    blk=cellfun(@num2str, {Metric_matrices(a).block}', 'UniformOutput', false);
+    yticklabels(strcat({Metric_matrices(a).ID}', {' '}, blk));
+end
+
+figure(2)
+suptitle('Preictal vs. phase, SOZ permutation test results')
+
+
+
+%% Permutation test Method 2: See which nodes are on the edges of the distribution
+
+percentRank = @(YourArray, TheProbes) reshape( mean( bsxfun(@le,...
+    YourArray(:), TheProbes(:).') ) * 100, size(TheProbes) );
+
+metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength', 'clustering3'};
+nperms=2000;  %number of 
+ 
+kRanks=struct(); 
+disp('Calculating distributions...')
+
+for i_set=i_ict
+    i_set
+
+    d=dataSets_clean(i_set);
+    st= Partitions(i_set).states;
+    Fs=round(d.Fs);
+    N=size(d.data,1); 
+    
+    % Get nullset
+    k=round(N*.1); 
+    i_perm=zeros(nperms, k);
+    rng(4)
+    for i=1:nperms
+        i_perm(i,:)=randperm(N,k);
+    end
+    
+    [all_freq, all_edges]=histcounts(i_perm(:),[0:64]+.5);
+%     figure(1); clf; hold on
+%     if strcmp(dataSets_clean(i_set).type, 'ictal')
+%         stDiff=round(dataSets_clean(i_set).UEOStart-dataSets_clean(i_set).EECStart);
+%         data= dataSets_clean(i_set).data(:,1+Fs*stDiff:end)';
+%     else
+%         stDiff=round(dataSets_clean(i_set-39).UEOStart-dataSets_clean(i_set-39).EECStart);
+%         data= [dataSets_clean(i_set).data(:,1+2*(Fs*stDiff):end), dataSets_clean(i_set-39).data(:,1:Fs*stDiff)]';
+%     end
+% 
+%     figure(1); clf; hold on
+%     plot((0:length(data)-1)/Fs,data+(1:1000:1000*(N)));
+%     if ~isempty(sozGrid)
+%         plot((0:length(data)-1)/Fs,data(:, sozGrid)+1000*(sozGrid-1)', 'c');
+%     end
+%     stem([(diff(st)~=0)]*1000*N,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
+%     title('Signal'); axis tight
+
+    for m=metrics
+        for s=1:3
+        % Difference between ictal and preictal phase
+            diffs=State_metrics(i_set).(m{1})(:,s)-State_metrics(i_set+39).(m{1})(:,1);
+            dist_diffs=diffs(i_perm)';
+
+            % Get absolute value of sum
+            dist_diffs=mean(abs(dist_diffs),1);
+            
+            % Get ordering/rank
+            [~,rnk]=sort(dist_diffs); 
+            kRanks(i_set).(m{1})(s,:)= rnk/nperms; 
+            figure(1)
+            clf
+            hold on
+            % Which nodes appear the most in the bottom percentile?
+            sml=(rnk/nperms)<0.025; lg=(rnk/nperms)>0.975; 
+            [sml_freq]=histcounts(i_perm(sml,:),[0:64]+.5);
+            
+            bar(sml_freq./all_freq)
+            [lg_freq]=histcounts(i_perm(lg,:),[0:64]+.5);
+            
+            b2=bar(lg_freq./all_freq);
+            b2.FaceAlpha = 0.5;
+            
+        end   
+    end
+    
+end
+disp('done with sozRanks calculation')
 
 %% Generate Figures
 %close all

@@ -1,7 +1,7 @@
 % get_states.m
 
 Null=''; % set to 'Null' to perform on null model, and '' otherwise
-
+nStates=3;
 % load(sprintf('Data/%sPartitions.mat', Null))
 % eval(['Partitions=', Null, 'Partitions;']) 
 % nSets=length(Partitions);
@@ -20,6 +20,7 @@ for i_set=1:nSets
     end
     
     if isempty(st)
+        fprintf('skipping %d \n',i_set)
         continue
     end
     
@@ -55,7 +56,7 @@ for i_set=1:nSets
     end
 
     Partitions(i_set).states=tran(st(:));    
-    Partitions(i_set).contigStates=contigSt(:); 
+    Partitions(i_set).contigStates=contigSt; 
     Partitions(i_set).stateLens=stateLens(inv(1:nStates));
     Partitions(i_set).stateMedian=stateMedian(inv(1:nStates))*100;
     Partitions(i_set).runLen=runLen(inv(1:nStates))./l*100;
@@ -64,8 +65,9 @@ for i_set=1:nSets
 
 end
 
-eval([Null,'Partitions=Partitions;'])
+disp('Done')
+% eval([Null,'Partitions=Partitions;'])
 save(sprintf('Data/%sWPartitions.mat', Null), sprintf('%sPartitions', Null),...
-    'nStates')
-disp('done')
-clear tran u f idx l p st nUnique top3 stateRuns runstates runLength 
+     'nStates')
+% disp('done')
+% clear tran u f idx l p st nUnique top3 stateRuns runstates runLength 

@@ -14,19 +14,7 @@ maxIter= 5;           % max # of iterations
 nTarget= 3;           % target Number of communities
 
 gamma_init=(0.8:.05:1.05); % initial resolution parameter range
-Qiter=50;            % number of mod. max iterations
-
-% Weight similarity matrices with linear weighting 
-for i_set=1:78
-    N=Networks(i_set).sim;
-    NN=zeros(length(N)); 
-    for i =1:length(N)
-        for j =1:length(N)
-            NN(i,j)=N(i,j)*((1 - abs(i-j)/length(N))^2);    
-        end
-    end
-    Networks(i_set).wSim=NN; 
-end
+Qiter=100;            % number of mod. max iterations
 
 for i_set = 1:nSets
     tic

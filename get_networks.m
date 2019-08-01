@@ -12,7 +12,7 @@ Null='';
 %%
 
 %Networks=struct();
-for i_set=1:length(dataSet)
+for i_set=67
     fprintf('inds %d\n',i_set)
     %try
 
@@ -59,6 +59,18 @@ for i_set=1:length(dataSet)
    
     Networks(i_set).sim=corrcoef(Networks(i_set).config_pcm).*~eye(TT);
 
+end
+
+% Weight similarity matrices with linear weighting 
+for i_set=1:78
+    N=Networks(i_set).sim;
+    NN=zeros(length(N)); 
+    for i =1:length(N)
+        for j =1:length(N)
+            NN(i,j)=N(i,j)*((1 - abs(i-j)/length(N))^2);    
+        end
+    end
+    Networks(i_set).wSim=NN; 
 end
 
 eval([Null, 'Networks=Networks']);

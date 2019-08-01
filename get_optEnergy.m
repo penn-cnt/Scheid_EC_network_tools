@@ -1,6 +1,6 @@
 % Get Energy
 load('Data/dataSets_clean')
-load('Data/Partitions')
+load('Data/WPartitionsUEO')
 load('Data/Networks')
 load('Data/State_Metrics')
 
@@ -12,7 +12,7 @@ cols=[[75,184,166];[255,168,231]; [36,67,152];[140,42,195];[121,29,38];[242,224,
 
 %% Part 1: Prepare Energy struct with initial and final values
 
-%Energy=struct();
+Energy=struct();
 %load('Data/Energy.mat')
 
 %Frequency Bands
@@ -45,22 +45,30 @@ for i_set= i_ict
     
     %Get preictal bandpower for state xf.
     pi_d=dataSets_clean(i_set+nSets/2);
-    xf=mean(MovingWinFeats(pi_d.data,Fs, 1, 1, bandfun),2);
+    stDiff=round(d.UEOStart-d.EECStart);
+    
+    pre_data= [dataSets_clean(i_set+nSets/2).data(:,1+2*(Fs*stDiff):end), d.data(:,1:Fs*stDiff)];
+
+    xf=mean(MovingWinFeats(pre_data,Fs, 1, 1, bandfun),2);
     Energy(i_set).xf=mean(MovingWinFeats(pi_d.data,Fs, 1, 1, bandfun),2);
+    
+    % Get ictal data from UEO
+    data= d.data(:,1+Fs*stDiff:end);
    
     
     for s=1:3
         %Get representative network for state
-        [~,m_ind]= max(sum(corrcoef(config(:,p.states==s))));
-        A_s= Net.pcm(:,:,p.states(m_ind)); 
-        Energy(i_set).repMats(:,:,s)= A_s;
+        [~,m_ind]= max(sum(corrcoef(config(:,p.contigStates==s))));
+        A_s= Net.pcm(:,:,p.contigStates==s); 
+        Energy(i_set).repMats(:,:,s)= A_s(:,:,m_ind);
         
         %Get ECoG signal in longest contig. run of state
         st_inds=p.stateRuns(1,:)==s;
         [m_run, i_max]=max(p.stateRuns(2,st_inds));
         t2= sum(p.stateRuns(2,1:find(cumsum(st_inds)==i_max,1,'first')));
         t1= t2-p.stateRuns(2,find(cumsum(st_inds)==i_max,1,'first'))+1;
-        signal=d.data(1:end,(Fs*(t1-1)+1:Fs*t2));
+
+        signal=data(1:end,(Fs*(t1-1)+1:Fs*t2));
         
         %Uncomment to visualize and double check
 %         figure(1); clf
@@ -108,7 +116,7 @@ disp('done')
 t_traj= linspace(0.006, 0.15, 10); %power(10, linspace(-3, log10(5), 10)) %log10 distribution b/w 1-10
 rho= power(10, linspace(-3, 2, 10)); % log10 distribution b/w 1-30
 
-for i_set=differs(1:end/2) %i_ict(29:end)
+for i_set=i_ict
     i_set
     Energy(i_set).t_traj=t_traj;
     Energy(i_set).rho=rho;
@@ -135,6 +143,34 @@ for i_set=differs(1:end/2) %i_ict(29:end)
                     [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
                     nodeEnergy(n,i_traj,i_rho)=sum(vecnorm(B*U_opt').^2);
                     trajErr(n, i_traj,i_rho)=n_err;
+                    
+%         energy{i_set}.X_opt{s}=X_opt(:,end/2:end)';
+%         energy{i_set}.U_opt{s}=U_opt';
+%         energy{i_set}.err{s}=n_err';
+%         energy{i_set}.xf=xf;
+%         energy{i_set}.totalEnergy(s)=sum(vecnorm(B*energy{i_set}.U_opt{s}).^2);
+        
+%          %Calculate energy per node
+%         for n=1:length(x0)
+%             if mod(n,20)==0
+%                 fprintf('%d/%d \n', n, length(x0));
+%             end
+%             B=10e-5*ones(length(x0),length(x0)); B(n,n)=1;
+%             [X_opt, U_opt, n_err] = optim_fun(A_s, t_traj, B, x0, xf, rho, eye(length(A_s)));
+%             energy{i_set}.nodeEnergy(n,s)=sum(vecnorm(B*U_opt').^2);
+%         end
+%         
+%         subplot(2,2,1+s)
+%         imagesc(x0);
+%         if s==1
+%             subplot(2,2,1)
+%             caxis([minn, maxx])
+%             minn=min(x0);
+%             maxx=max(x0);
+%         end
+%         caxis([minn, maxx]) 
+                    
+                    
                 end
                 
             catch ME
@@ -170,13 +206,12 @@ t_opt=6;
 r_opt=6; 
 
 for i_set=i_ict
-%     State_metrics(i_set).optEnergy=[];
-%     State_metrics(i_set+length(i_ict)).optEnergy=[];
-%     eval(sprintf('State_metrics(i_set).%sZ=stAvg((%s-mean(%s(:)))/std(%s(:)));',m{1},m{1},m{1},m{1}));
-%     for s=1:3
-%      State_metrics(i_set).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
-%      State_metrics(i_set+length(i_ict)).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
-%     end
+    State_metrics(i_set).optEnergy=[];
+    State_metrics(i_set+length(i_ict)).optEnergy=[];
+    for s=1:3
+     State_metrics(i_set).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
+     State_metrics(i_set+length(i_ict)).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
+    end
     State_metrics(i_set).optEnergyZ=(State_metrics(i_set).optEnergy-mean(State_metrics(i_set).optEnergy(:)))/...
         std(State_metrics(i_set).optEnergy(:));
     State_metrics(i_set+length(i_ict)).optEnergyZ=(State_metrics(i_set).optEnergy-mean(State_metrics(i_set).optEnergy(:)))/...

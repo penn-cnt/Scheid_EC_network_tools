@@ -8,9 +8,9 @@ Null='' % set string to 'Null' if computing on null model, else set empty
 % eval(['Networks=', Null, 'Networks;']);
 % eval(['Partitions=', Null, 'Partitions;']);
 
-nSets=length(Partitions);
-metric_matrices= struct(); 
-state_metrics=struct();
+% nSets=length(Partitions);
+% metric_matrices= struct(); 
+% state_metrics=struct();
 
 thresh=0.15;     % Threshold for transient/persistent mode selection
 dt=1;        %
@@ -129,7 +129,7 @@ end
 
 eval([Null,'Metric_matrices= metric_matrices']);
 eval([Null,'State_metrics= state_metrics']);
-save(sprintf('Data/%sMetric_matrices.mat', Null), sprintf('%sMetric_matrices', Null))
-save(sprintf('Data/%sState_metrics.mat', Null), sprintf('%sState_metrics', Null))
+% save(sprintf('Data/%sMetric_matrices.mat', Null), sprintf('%sMetric_matrices', Null))
+% save(sprintf('Data/%sState_metrics.mat', Null), sprintf('%sState_metrics', Null))
 
 disp('done')
