@@ -90,7 +90,7 @@ disp('done preparing energy struct')
 t_traj= linspace(0.006, 0.15, 10); %power(10, linspace(-3, log10(5), 10)) %log10 distribution b/w 1-10
 rho= power(10, linspace(-3, 2, 10)); % log10 distribution b/w 1-30
 
-metric='aveCtrl';   % metric to test energy values on
+metric='strength';   % metric to test energy values on
 pcntN=.1;           % Percent nodes (if greater than .5, will take the highest value)
 
 for i_set=i_ict
@@ -151,7 +151,7 @@ for i_set=i_ict
     end % end states loop
 end 
 
-save('Data/EnergyMetric.mat', 'EnergyMetric', 't_traj', 'rho', 'freq')
+save('Data/EnergyMetricStrength.mat', 'EnergyMetric', 't_traj', 'rho', 'freq')
 disp('Part 2 EnergyMetric Calc done')
 
 %% Part 3: Run permutation test using control parameters
@@ -163,7 +163,7 @@ percentRank = @(YourArray, TheProbes) reshape( mean( bsxfun(@le,...
 
 t_idx=6; %power(10, linspace(-3, log10(5), 10)) %log10 distribution b/w 1-10
 rho_idx= 6; % log10 distribution b/w 1-30
-metric='aveCtrl';
+metric='strength';
 nperms=100; % Number of permutations to select from
 
 for i_set=i_ict
@@ -219,7 +219,7 @@ for i_set=i_ict
     end % end states loop
 end 
 
-save('Data/EnergyMetric.mat', 'EnergyMetric', '-append')
+save('Data/EnergyMetricStrength.mat', 'EnergyMetric', '-append')
 disp('EnergyMetric Calc done')
 
 %% Visualize the Metric Placement
@@ -251,7 +251,7 @@ xticks([1:3])
 
 
 figure(2)
-suptitle('Preictal vs. phase, Avg. Crtl permutation test results')
+suptitle(sprintf('Preictal vs. phase, %s permutation test results', metric))
 
 
 %% Part 3: Add state EnergyMetric to State_Metrics

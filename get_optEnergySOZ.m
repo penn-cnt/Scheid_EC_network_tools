@@ -26,7 +26,7 @@ broad_g=[30,105];
 
 % Select bandpower calculation range
 freq=broad_g;
-nWind=10;
+nWind=Inf;
 
 %line length function
 llfun=@(x)sum(abs(diff(x,[],2)),2);
@@ -54,7 +54,7 @@ for i_set= i_ict
     
     pre_data= [dataSets_clean(i_set+nSets/2).data(:,1+2*(Fs*stDiff):end), d.data(:,1:Fs*stDiff)];
 
-    xf=mean(MovingWinFeats(pre_data,Fs, 1, 1, bandfun),2);
+    xf=zeros(N,1); %mean(MovingWinFeats(pre_data,Fs, 1, 1, bandfun),2);
     EnergySOZ(i_set).xf=mean(MovingWinFeats(pi_d.data,Fs, 1, 1, bandfun),2);
     
     % Get ictal data from UEO
@@ -91,7 +91,7 @@ disp('done preparing energy struct')
 t_traj= linspace(0.006, 0.15, 10); %power(10, linspace(-3, log10(5), 10)) %log10 distribution b/w 1-10
 rho= power(10, linspace(-3, 2, 10)); % log10 distribution b/w 1-30
 
-for i_set=i_ict
+for i_set=3 %i_ict
     i_set
     EnergySOZ(i_set).t_traj=t_traj;
     EnergySOZ(i_set).rho=rho;
@@ -156,7 +156,7 @@ percentRank = @(YourArray, TheProbes) reshape( mean( bsxfun(@le,...
 t_idx=6; %power(10, linspace(-3, log10(5), 10)) %log10 distribution b/w 1-10
 rho_idx= 6; % log10 distribution b/w 1-30
 
-nperms=100; % Number of permutations to select from
+nperms=500; % Number of permutations to select from
 
 for i_set=i_ict
     i_set
@@ -195,6 +195,8 @@ for i_set=i_ict
                 B=10e-5*ones(length(x0),1); B(i_perm(nt,:))=1; B=diag(B);
                 [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
                 nodeEnergynull(nt)=sum(vecnorm(B*U_opt').^2);
+                           
+                
             end
 
         catch ME
@@ -213,40 +215,45 @@ for i_set=i_ict
     end % end states loop
 end 
 
-%save('Data/EnergySOZ.mat', 'EnergySOZ', '-append')
-save(sprintf('Data/EnergySOZ%d.mat',nWind), 'EnergySOZ', 't_traj', 'rho', 'freq')
+%save('Data/EnergySOZInf.mat', 'EnergySOZ', '-append')
+%save(sprintf('Data/EnergySOZ_zero%d.mat',nWind), 'EnergySOZ', 't_traj', 'rho', 'freq')
 disp('Part 3 EnergySOZ Calc done')
 
 %% Visualize the SOZ
 % for each metric
 a=[1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    25    26    28];
 
-figure(5); clf; 
-figure(6); clf;
+cb=97.5; %confidence bound (percent)
 
-figure(5)
+for j=[Inf]
+    %load(sprintf('Data/EnergySOZ%d.mat', j));
+    
+figure(min(90,j)*13)
 pcnts=[EnergySOZ.SOZconfidence];
-sumSig=sum(pcnts>95)+sum(pcnts<5);
-scatter(repmat([1:3],1,18)+normrnd(0,.05, [1,54]),  pcnts, 60, repmat(parula(18),3,1), 'filled')
-title('Energy SOZ Permutation Test significance')
+sumSig=sum(pcnts>cb)+sum(pcnts<(100-cb));
+%scatter(repmat([1:3],1,18)+normrnd(0,.05, [1,54]),  pcnts, 60, repmat(copper(18),3,1), 'filled')
+scatter(repmat([1:3],1,18)+normrnd(0,.05, [1,54]),  pcnts, 25,'blue')
+%title(sprintf('Energy SOZ Permutation Test (all windows) significance',j))
+title(sprintf('Energy SOZ Permutation Test (%d windows) significance',j))
 xlim([.5,3.5])
 ylim([-5, 105])
 xticklabels({'Phase1', 'Phase 2', 'Phase 3'})
 xticks([1:3])
 xtickangle(20)
-hline(5)
-hline(95)
+hline(100-cb)
+hline(cb)
 
-figure(6)
-imagesc(reshape([EnergySOZ.SOZconfidence],3,18)'<=5)
+figure(min(90,j)*13+1)
+imagesc(reshape([EnergySOZ.SOZconfidence],3,18)'<=(100-cb))
 yticks([1:18])
 blk=cellfun(@num2str, {Metric_matrices(a).block}', 'UniformOutput', false);
 yticklabels(strcat({Metric_matrices(a).ID}', {' '}, blk));
 xticklabels({'Phase1', 'Phase 2', 'Phase 3'})
 xticks([1:3])
+title(sprintf('Energy SOZ Permutation Test (%d windows) significance',j))
 
 
-figure(2)
+end
 
 
 %% Part 3: Add state EnergySOZ to State_Metrics
@@ -273,6 +280,120 @@ rOpt=rho(r_opt);
 save('Data/State_metrics.mat', 'State_metrics', 'tOpt', 'rOpt');
 
 disp('done')
+%% Spatial visual of node energies
+
+
+clf;
+cmap=colormap; 
+for i_set=3 %a
+    figure(1)
+    clf; hold on
+    if isempty(dataSets_clean(i_set).sozGrid)
+        continue
+    end
+    
+    e=EnergySOZ(i_set);
+    N=size(e.x0,1);
+    
+    % Calculate average energy values
+    avgEng=nan(N,3);
+    for node=1:N
+       [I,~] = ind2sub(size(e.nullSets),find(e.nullSets==node))
+        if ~isempty(I)
+            %avgEng(node,:)=e.nodeEnergynull(I(randi(length(I),1)),:);
+            avgEng(node,:)=mean(e.nodeEnergynull(I,:));
+        end
+    end
+    
+    soz=dataSets_clean(i_set).sozGrid; 
+    avgEng(soz,1)=e.s1NodeEnergySOZ(t_opt, r_opt);
+    avgEng(soz,2)=e.s2NodeEnergySOZ(t_opt, r_opt); 
+    avgEng(soz,3)=e.s3NodeEnergySOZ(t_opt, r_opt); 
+    
+        st=avgEng
+        c_met=1+reshape(round(63*rescale(st(:))), size(st));
+        clims=[min(st(:)), max(st(:))];
+        X=dataSets_clean(i_set).gridCoords(:,1);
+        Y=dataSets_clean(i_set).gridCoords(:,2);
+        for s=3:-1:1
+            subplot(1,3,s)
+            colormap parula
+            hold on
+            scatter(X(dataSets_clean(i_set).sozGrid), ...
+                 Y(dataSets_clean(i_set).sozGrid),120, 'r', 'filled')
+            scatter(X,Y, 80, st(:,s), 'filled')           
+            xticklabels([]); yticklabels([])
+            xlim([.5,8.5]); ylim([.5,8.5]);
+            xlabel(sprintf('phase %d', s))
+            %caxis(clims)
+            %set(gca, 'colorscale', 'log')
+            %ylabel(metrics{m})
+            colorbar
+            %if s==3; colorbar; end
+      
+        
+    end
+    %suptitle(sprintf('Spatial Metrics for %s, block %d', dataSets_clean(i_set).ID, dataSets_clean(i_set).block))
+   % pause
+end
+
+%% Plot trajectories 
+clear energy
+for i_set=3 %i_ict
+    i_set
+    % Select the values of t and rho that were determined previously
+    T=EnergySOZ(i_set).t_traj(t_idx);
+    r=EnergySOZ(i_set).rho(rho_idx);
+
+    for s=1:3
+        A_s= EnergySOZ(i_set).repMats(:,:,s);
+        x0= EnergySOZ(i_set).x0(:,s);
+        xf= EnergySOZ(i_set).xf;
+        B=10e-5*ones(length(x0),1); B(soz)=1; B=diag(B);
+        %T=1;
+        [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
+        nodeEnergySOZ(i_traj,i_rho)=sum(vecnorm(B*U_opt').^2);
+        energy(i_set).X_opt(:,:,s)=X_opt(:,end/2:end)';
+        energy(i_set).U_opt(:,:,s)=U_opt';
+        energy(i_set).n_err(:,:,s)=n_err;
+    end     
+end
+%%
+i_set=3;
+plot(mean(energy(i_set).U_opt(:,:,3)))
+xtraj=zeros(size(energy(i_set).X_opt(:,:,3),1),3);
+for j=1:size(energy(i_set).X_opt(:,:,3),2)
+    xtraj(j,1)=norm(energy(i_set).X_opt(:,j,1)-energy(i_set).X_opt(:,end,1));
+    xtraj(j,2)=norm(energy(i_set).X_opt(:,j,2)-energy(i_set).X_opt(:,end,2));
+    xtraj(j,3)=norm(energy(i_set).X_opt(:,j,3)-energy(i_set).X_opt(:,end,3));   
+end
+
+clf
+plot([1:size(energy(i_set).U_opt,2)],xtraj)
+
+%%
+
+i_set=3;
+plot(mean(energy(i_set).U_opt(:,:,3)))
+xtraj=zeros(size(energy(i_set).X_opt,1),3);
+for j=1:size(energy(i_set).X_opt,2)
+    xtraj(j,1)=norm(B*energy(i_set).U_opt(:,j,1));
+    xtraj(j,2)=norm(B*energy(i_set).U_opt(:,j,2));
+    xtraj(j,3)=norm(B*energy(i_set).U_opt(:,j,3));
+end
+
+clf
+
+
+%%
+clf; hold on;
+plot([1:size(energy(i_set).U_opt,2)]/1000, xtraj(:,1), 'color', cols(1,:))
+plot([1:size(energy(i_set).U_opt,2)]/1000, xtraj(:,2), 'color', cols(2,:))
+plot([1:size(energy(i_set).U_opt,2)]/1000, xtraj(:,3), 'color', cols(3,:))
+xlabel('T')
+ylabel('||X(t)-X_T|| (a.u.)o')
+legend('Phase 1', 'Phase 2', 'Phase 3')
+
 %% Visualization for zooming in 
 
 figure(3); clf

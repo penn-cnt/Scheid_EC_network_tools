@@ -6,7 +6,7 @@ Null='';
 load('Data/dataSets_clean.mat');
 load('Data/subjects.mat')
 load(sprintf('Data/%sNetworks.mat', Null)); 
-load(sprintf('Data/%sPartitions.mat', Null));
+load(sprintf('Data/%sWPartitionsUEO.mat', Null));
 load(sprintf('Data/%sMetric_matrices.mat', Null)); 
 load(sprintf('Data/%sState_metrics.mat', Null))
 load('Data/avgDist.mat');
@@ -202,7 +202,6 @@ end
 for i_set=a
     i_set
     st= Partitions(i_set).states;
-    figure(8); clf; hold on
         Fs=round( dataSets_clean(i_set).Fs);
         d=dataSets_clean(i_set);
     if strcmp(dataSets_clean(i_set).type, 'ictal')
@@ -232,7 +231,7 @@ display='off';
 analysis=struct();
 diffs=struct();
 glob=struct(); c_i_preict_glob=struct(); c_i_ict_glob=struct();
-metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
+metrics={'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'optEnergy'} %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
 
 for i_set=1:nSets
     
@@ -263,26 +262,27 @@ for i_set=1:nSets
 end
 
 display='off';
-
+%metrics={'optEnergy'}
 % Get group level averages
 for i=1:length(metrics)
-    
     % ictal 
-    eval(sprintf('[~,~,stats_g%s]=friedman(glob.%s(i_ict,1:3),1,display)', metrics{i},  metrics{i}))
+    eval(sprintf('[~,table1,stats_g%s]=friedman(glob.%s(i_ict,1:3),1,display);', metrics{i},  metrics{i}))
     eval(['[c_i_ict_glob.',metrics{i},',m_ict_g',metrics{i},...
         ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
+    disp(table1)
     %preicatl
     eval(sprintf('[~,~,stats_g%s]=friedman(glob.%s(i_preict,1:3),1,display);', metrics{i},  metrics{i}));
     eval(['[c_i_preict_glob.',metrics{i},',m_ict_g',metrics{i},...
         ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
+
 end
     
 disp('done')
 %% Display results of Friedman's test individually
 ctr=1;
-alpha=.0005; 
+alpha=.05; 
 
-metrics={'aveCtrl', 'modalCtrl','optEnergy'}
+metrics={'aveCtrl', 'modalCtrl','optEnergy', 'strength'}
 
 
 for type=[i_ict', i_preict']
@@ -304,8 +304,8 @@ for type=[i_ict', i_preict']
     colormap(gca,cols([9,1,2,3],:));
     imagesc(met.*repmat([1:3],nSamp,nMeas))
 
-    plot((diffs>0).*repmat((1:nMeas*3),nSamp,1),repmat((1:nSamp)',1,nMeas*3),'v','color', 'cyan')
-    plot((diffs<0).*repmat((1:nMeas*3),nSamp,1),repmat((1:nSamp)',1,nMeas*3),'^','color', 'white')
+    plot((diffs>0).*repmat((1:nMeas*3),nSamp,1),repmat((1:nSamp)',1,nMeas*3),'^','color', 'cyan')
+    plot((diffs<0).*repmat((1:nMeas*3),nSamp,1),repmat((1:nSamp)',1,nMeas*3),'v','color', 'white')
 
     yticks([1:nSamp])
     %yticklabels({Metric_matrices(type).block});
@@ -338,8 +338,8 @@ disp('done')
 ctr=6;
 alpha=0.05
 
-metrics={ 'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
-%metrics={'strength'}
+%metrics={ 'optEnergy'} %aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
+metrics={'optEnergy'}
 for type={'i_ict', 'i_preict'} %, 'i_null'
     figure(ctr); clf;
     for i=1:length(metrics)
@@ -380,13 +380,13 @@ sozCorrP=Inf(39,3);
 figure(1)
 for i_set=i_ict
     i_set
-    met1=State_metrics(i_set).optEnergy;
-    met2=State_metrics(i_set).modalCtrl;
+    met1=State_metrics(i_set).pModalCtrl; %avgDist{i_set}
+    met2=State_metrics(i_set).strength;
 
-    if isempty(avgDist{i_set})
-        disp('skipping')
-        continue
-    end
+%     if isempty(avgDist{i_set})
+%         disp('skipping')
+%         continue
+%     end
     
     soz=dataSets_clean(i_set).sozGrid;
     
@@ -394,43 +394,40 @@ for s=1:3
     subplot(1,3,s)
     hold on
     % Get correlation between soz nodes and others per state
-%     [cor, pval]=corr(met(:,s), avgDist{i_set});
-%     scatter(avgDist{i_set}, met(:,s));
-%     scatter(avgDist{i_set}(soz),met(soz,s), 'r');
-%     tbl=table(avgDist{i_set},met(:,s));
-%     mdl = fitlm(tbl,'linear');
-%     plot(avgDist{i_set},mdl.Fitted); 
-
     [cor, pval]=corr(met1(:,s), met2(:,s));
-    scatter(met1(:,s), met2(:,s));
-    scatter(met1(soz,s),met2(soz,s), 'r');
-    tbl=table(met1(:,s), met2(:,s));
-    mdl = fitlm(tbl,'linear');
-    %plot(met1(:,s),mdl.Fitted); 
-
-    title(sprintf('pval=%0.3f, R^2=%0.3f', mdl.Coefficients.pValue(2), mdl.Rsquared.Adjusted))
-    xlabel('metricVal'); ylabel('Dist')
     sozCorr(i_set, s)=cor;
     sozCorrP(i_set, s)=pval;
+    
+%     scatter(met1(:,s), met2(:,s));
+%     scatter(met1(soz,s),met2(soz,s), 'r');
+%     tbl=table(met1(:,s), met2(:,s));
+%     %mdl = fitlm(tbl,'linear');
+%     %plot(met1(:,s),mdl.Fitted); 
+%  
+%     title(sprintf('pval=%0.3f', pval))
+%     %title(sprintf('pval=%0.3f, R^2=%0.3f', mdl.Coefficients.pValue(2), mdl.Rsquared.Adjusted))
+%     xlabel('optEnergy'); ylabel('modalCtrl')
 end
 
-suptitle(sprintf('Avg. Ctrl. SOZ distance corr, %s %d', State_metrics(i_set).ID, State_metrics(i_set).block))
+%suptitle(sprintf('Avg. Ctrl. SOZ distance corr, %s %d', State_metrics(i_set).ID, State_metrics(i_set).block))
 %pause
 end
 
-%%
+%
 figure(2)
-imagesc((sozCorrP<0.05))%.*(sozCorr>0))
+imagesc((sozCorrP(i_ict,:)<=0.05))%.*(sozCorr>0))
 blk=cellfun(@num2str, {Metric_matrices(i_ict).block}', 'UniformOutput', false);
 yticklabels(strcat({Metric_matrices(i_ict).ID}', {' '}, blk));
 yticks([1:39])
 set(gca,'TickLabelInterpreter','none')
+xticks([1:3])
+xticklabel({'Phase 1', 'Phase 2', 'Phase 3'})
 % figure(3)
 % imagesc((sozCorrP<0.05).*(sozCorr<0))
 
 %% View Nodes and Values spatially  %%
 clf;
-metrics={'aveCtrl'};
+metrics={'optEnergy'};
 cmap=colormap; 
 for i_set=1:39
     figure(1)
@@ -591,7 +588,7 @@ suptitle('average positive/negative edge ratio')
 percentRank = @(YourArray, TheProbes) reshape( mean( bsxfun(@le,...
     YourArray(:), TheProbes(:).') ) * 100, size(TheProbes) );
 
-metrics={'optEnergy','aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength'}
+metrics={'strength','aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'}
 nperms=2000;  %number of 
  
 sozRanks=struct(); 
@@ -675,17 +672,18 @@ for m=1:length(metrics)
     pcnts=[sozRanks.(metrics{m})];
     sumSig=sum(pcnts>95)+sum(pcnts<5);
     scatter(repmat([1:3],1,18)+normrnd(0,.05, [1,54]),  pcnts, 60, repmat(parula(18),3,1), 'filled')
-    title(sprintf('%s, %d', metrics{m}, sumSig))
+    title(sprintf('%s', metrics{m}))
     xlim([.5,3.5])
     ylim([-5, 105])
     xticklabels({'Phase1', 'Phase 2', 'Phase 3'})
     xtickangle(20)
-    hline(5)
-    hline(95)
+    hline(2.5)
+    hline(97.5)
     
     figure(3)
     subplot(1,length(metrics), m)
-    imagesc(reshape([sozRanks.(metrics{m})],3,18)'>95)
+    imagesc(double(reshape([sozRanks.(metrics{m})],3,18)'>=97.5)...
+        +2*double(reshape([sozRanks.(metrics{m})],3,18)'<=2.5))
     yticks([1:18])
     blk=cellfun(@num2str, {Metric_matrices(a).block}', 'UniformOutput', false);
     yticklabels(strcat({Metric_matrices(a).ID}', {' '}, blk));
