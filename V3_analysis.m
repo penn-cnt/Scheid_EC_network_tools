@@ -88,41 +88,6 @@ n=2; m=4;
 all=false; % show both preictal and ictal
 metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl'}; 
 %metrics={'degree', 'aveCtrl', 'modalCtrl'}; 
-%% Display Kurtosis
-for i_set=i_ict
-    figure(1)
-    clf;
-    p= Partitions(i_set);
-    st= p.states; mm= Metric_matrices(i_set);
-    hold on
-    plot(mm.kurtosis)
-    stem((diff(st)~=0)*max(mm.kurtosis),'Marker', 'none', 'lineWidth', 2, 'color', 'red')
-    ylim([0,20])
-   
-     figure(2)
-    %set(gca, 'Position', get(gca, 'Position')+[0,.05,0,0])
-    imagesc(st) 
-    colormap(gca, cols(1:3,:));
-    set(gca, 'YTick', [], 'fontsize', 18)
-    
-        figure(3)
-    clf;
-    p= Partitions(i_set+39);
-    st= p.states; mm= Metric_matrices(i_set+39);
-    hold on
-    plot(mm.kurtosis)
-    stem((diff(st)~=0)*max(mm.kurtosis),'Marker', 'none', 'lineWidth', .5, 'color', 'red')
-    ylim([0,20])
-   
-     figure(5)
-    %set(gca, 'Position', get(gca, 'Position')+[0,.05,0,0])
-    imagesc(st) 
-    colormap(gca, cols(1:3,:));
-    set(gca, 'YTick', [], 'fontsize', 18)
-    
-    pause
-end
-%%
 
 for i_set=1:nSets
     i_set
@@ -223,6 +188,41 @@ for i_set=a
     pause
 end
 
+%% Display Kurtosis
+for i_set=i_ict
+    figure(1)
+    clf;
+    p= Partitions(i_set);
+    st= p.states; mm= Metric_matrices(i_set);
+    hold on
+    plot(mm.kurtosis)
+    stem((diff(st)~=0)*max(mm.kurtosis),'Marker', 'none', 'lineWidth', 2, 'color', 'red')
+    ylim([0,20])
+   
+     figure(2)
+    %set(gca, 'Position', get(gca, 'Position')+[0,.05,0,0])
+    imagesc(st) 
+    colormap(gca, cols(1:3,:));
+    set(gca, 'YTick', [], 'fontsize', 18)
+    
+        figure(3)
+    clf;
+    p= Partitions(i_set+39);
+    st= p.states; mm= Metric_matrices(i_set+39);
+    hold on
+    plot(mm.kurtosis)
+    stem((diff(st)~=0)*max(mm.kurtosis),'Marker', 'none', 'lineWidth', .5, 'color', 'red')
+    ylim([0,20])
+   
+     figure(5)
+    %set(gca, 'Position', get(gca, 'Position')+[0,.05,0,0])
+    imagesc(st) 
+    colormap(gca, cols(1:3,:));
+    set(gca, 'YTick', [], 'fontsize', 18)
+    
+    pause
+end
+
 %% Is there a difference between states? (creates glob,c_i_preict_glob, i_ict_glob)
 
 ctype='bonferroni';
@@ -231,7 +231,7 @@ display='off';
 analysis=struct();
 diffs=struct();
 glob=struct(); c_i_preict_glob=struct(); c_i_ict_glob=struct();
-metrics={'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'optEnergy'} %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
+metrics={'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'optEnergySOZ'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
 
 for i_set=1:nSets
     
@@ -242,7 +242,14 @@ for i_set=1:nSets
     
     for i=1:length(metrics)
         
+        % Skip paatients without values for a specific metric
+        if isempty(s.(metrics{i}))
+            eval(sprintf('glob.%s(i_set,:)=nan;', metrics{i})); 
+            continue
+        end
+        % Take care of metrics without nodal values
         if size(s.(metrics{i}),1)==1
+            i_set
             eval(sprintf('glob.%s(i_set,:)=s.%s(1:3);', metrics{i}, metrics{i})); 
             continue
         end
@@ -261,19 +268,35 @@ for i_set=1:nSets
     end
 end
 
-display='off';
+display='on';
 %metrics={'optEnergy'}
 % Get group level averages
-for i=1:length(metrics)
+for i=6% 1:length(metrics)
+    if contains(metrics{i}, 'SOZ')
+        %SOZ
+        % ictal 
+        eval(sprintf('[~,table1,stats_g%s]=friedman(glob.%s(i_soz,1:3),1,display);', metrics{i},  metrics{i}))
+        eval(['[c_i_ict_glob.',metrics{i},',m_ict_g',metrics{i},...
+            ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
+        disp(table1)
+        %preictal
+        eval(sprintf('[~,~,stats_g%s]=friedman(glob.%s(i_soz+39,1:3),1,display);', metrics{i},  metrics{i}));
+        eval(['[c_i_preict_glob.',metrics{i},',m_ict_g',metrics{i},...
+            ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
+        continue 
+        pause
+    end
+    
     % ictal 
     eval(sprintf('[~,table1,stats_g%s]=friedman(glob.%s(i_ict,1:3),1,display);', metrics{i},  metrics{i}))
     eval(['[c_i_ict_glob.',metrics{i},',m_ict_g',metrics{i},...
         ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
     disp(table1)
-    %preicatl
+    %preictal
     eval(sprintf('[~,~,stats_g%s]=friedman(glob.%s(i_preict,1:3),1,display);', metrics{i},  metrics{i}));
     eval(['[c_i_preict_glob.',metrics{i},',m_ict_g',metrics{i},...
         ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
+    
 
 end
     
@@ -339,7 +362,7 @@ ctr=6;
 alpha=0.05
 
 %metrics={ 'optEnergy'} %aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
-metrics={'optEnergy'}
+metrics={'optEnergySOZ'}
 for type={'i_ict', 'i_preict'} %, 'i_null'
     figure(ctr); clf;
     for i=1:length(metrics)
@@ -365,6 +388,7 @@ for type={'i_ict', 'i_preict'} %, 'i_null'
         ylabel([metrics{i}, ' zscore'])
         title(metrics{i})
         cs=eval(['c_',type{1},'_glob.',metrics{i}]);
+        paval_test(ics(:,6)
         sigstar(num2cell(cs(cs(:,6)<=alpha,[1:2]),2));
         %ylim([min(eval(['glob.',metrics{i},'(:)']))*1.1, max(eval(['glob.',metrics{i},'(:)'])*1.2)])
     end
@@ -372,17 +396,18 @@ for type={'i_ict', 'i_preict'} %, 'i_null'
     ctr= ctr+2;
 end
 
-%% Is there a correlation with distance to SOZ?
+%% Is there a correlation between metrics?
 clf
-metrics={'optEnergy'} %aveCtrl', 'modalCtrl', 'optEnergy', 'tModalCtrl','pModalCtrl', 'strength'};
+metric1='optEnergysoz'; %aveCtrl', 'modalCtrl', 'optEnergy', 'tModalCtrl','pModalCtrl', 'strength'};
+metric2='strength';
+
 sozCorr=Inf(39, 3);
 sozCorrP=Inf(39,3);
 figure(1)
 for i_set=i_ict
     i_set
-    met1=State_metrics(i_set).pModalCtrl; %avgDist{i_set}
-    met2=State_metrics(i_set).strength;
-
+    met1=State_metrics(i_set).(metric1); %avgDist{i_set}
+    met2=State_metrics(i_set).(metric2);
 %     if isempty(avgDist{i_set})
 %         disp('skipping')
 %         continue
@@ -398,36 +423,41 @@ for s=1:3
     sozCorr(i_set, s)=cor;
     sozCorrP(i_set, s)=pval;
     
-%     scatter(met1(:,s), met2(:,s));
-%     scatter(met1(soz,s),met2(soz,s), 'r');
-%     tbl=table(met1(:,s), met2(:,s));
-%     %mdl = fitlm(tbl,'linear');
-%     %plot(met1(:,s),mdl.Fitted); 
-%  
-%     title(sprintf('pval=%0.3f', pval))
-%     %title(sprintf('pval=%0.3f, R^2=%0.3f', mdl.Coefficients.pValue(2), mdl.Rsquared.Adjusted))
-%     xlabel('optEnergy'); ylabel('modalCtrl')
+    scatter(met1(:,s), met2(:,s));
+    scatter(met1(soz,s),met2(soz,s), 'r');
+    mdl = polyfit(met1(:,s), met2(:,s), 1);
+    f=polyval(mdl, met1(:,s)); 
+    plot(met1(:,s),f); 
+ 
+    title(sprintf('pval=%0.3f', pval))
+    %title(sprintf('pval=%0.3f, R^2=%0.3f', mdl.Coefficients.pValue(2), mdl.Rsquared.Adjusted))
+    xlabel('optEnergy'); ylabel('modalCtrl')
 end
 
-%suptitle(sprintf('Avg. Ctrl. SOZ distance corr, %s %d', State_metrics(i_set).ID, State_metrics(i_set).block))
+suptitle(sprintf('Avg. Ctrl. SOZ distance corr, %s %d', State_metrics(i_set).ID, State_metrics(i_set).block))
 %pause
 end
 
-%
+
 figure(2)
-imagesc((sozCorrP(i_ict,:)<=0.05))%.*(sozCorr>0))
+clf
+hold on
+imagesc(sozCorr(i_ict, :).^2)
+plot([1:3], (sozCorrP(i_ict,:)<=0.05).*repmat([1:length(i_ict)]',1, 3), '*', 'color', 'black');
 blk=cellfun(@num2str, {Metric_matrices(i_ict).block}', 'UniformOutput', false);
 yticklabels(strcat({Metric_matrices(i_ict).ID}', {' '}, blk));
 yticks([1:39])
 set(gca,'TickLabelInterpreter','none')
 xticks([1:3])
-xticklabel({'Phase 1', 'Phase 2', 'Phase 3'})
+xticklabels({'Phase 1', 'Phase 2', 'Phase 3'})
+title(sprintf('Corr values between %s and %s', metric1, metric2))
 % figure(3)
 % imagesc((sozCorrP<0.05).*(sozCorr<0))
 
 %% View Nodes and Values spatially  %%
+figure(1)
 clf;
-metrics={'optEnergy'};
+metrics={'strengthNeg'};
 cmap=colormap; 
 for i_set=1:39
     figure(1)
@@ -436,7 +466,8 @@ for i_set=1:39
         continue
     end
     for m=1:length(metrics)
-        st=State_metrics(i_set).(metrics{m});
+        st=State_metrics(i_set).strengthPos+State_metrics(i_set).strengthNeg;
+        %State_metrics(i_set).(metrics{m});
         %st=abs(State_metrics(i_set).(metrics{m})-State_metrics(i_set+39).(metrics{m})(:,1));
         c_met=1+reshape(round(63*rescale(st(:))), size(st));
         clims=[min(st(:)), max(st(:))];
@@ -447,10 +478,18 @@ for i_set=1:39
             colormap parula
             hold on
             scatter(X,Y,c_met(:,s)+80, st(:,s), 'filled')
-            scatter(X(EnergyMetric(i_set).aveCtrl_NOI(:,s)), ...
-                 Y(EnergyMetric(i_set).aveCtrl_NOI(:,s)),100, 'r')            
-%              scatter(X(dataSets_clean(i_set).sozGrid), ...
-%                  Y(dataSets_clean(i_set).sozGrid),100, 'r')
+              % Show control metric value
+%             scatter(X(EnergyMetric(i_set).aveCtrl_NOI(:,s)), ...
+%                  Y(EnergyMetric(i_set).aveCtrl_NOI(:,s)),100, 'r')   
+              % Show soz
+              scatter(X(dataSets_clean(i_set).sozGrid), ...
+                  Y(dataSets_clean(i_set).sozGrid),100, 'r')
+              % Show control gradient
+              ctrl=getSpreadControl(dataSets(i_set).
+              scatter(X(dataSets_clean(i_set).sozGrid), ...
+                  Y(dataSets_clean(i_set).sozGrid),100, 'r')
+              
+              
             xticklabels([]); yticklabels([])
             xlim([.5,8.5]); ylim([.5,8.5]);
             xlabel(sprintf('phase %d', s))

@@ -26,6 +26,10 @@ freq=high_g;
 %line length function
 llfun=@(x)sum(abs(diff(x,[],2)),2);
 
+info=['x0: mean bandpower across all windows in phase',...
+      'xf: preict. bandpower', ...
+      'B: single node, 1e-5 along diag'];
+
 for i_set= i_ict
     Net= Networks(i_set);
     p=Partitions(i_set);
@@ -109,7 +113,7 @@ end
 disp('done')
 
 %% Part 2: Find ideal trajectory u* and optimal energy
-%load('Data/Energy.mat')
+load('Data/Energy.mat')
 
 % Energy Parameters to Test
 %power(10, linspace(-3, 2, 10)); 
@@ -120,12 +124,13 @@ for i_set=i_ict
     i_set
     Energy(i_set).t_traj=t_traj;
     Energy(i_set).rho=rho;
+    xf= Energy(i_set).xf;
     
     for s=1:3  % iterate through states
     
     A_s= Energy(i_set).repMats(:,:,s);
     x0= Energy(i_set).x0(:,s);
-    xf= Energy(i_set).xf;
+    
     [nodeEnergy, trajErr]= deal(zeros(length(x0),...
         length(t_traj), length(rho)));
     compTime=zeros(length(t_traj), 1);
@@ -139,8 +144,28 @@ for i_set=i_ict
              %Calculate energy per node
             try
                 for n=1:length(x0)
-                    B=10e-5*ones(length(x0),length(x0)); B(n,n)=1;
-                    [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
+                    %%
+                    r=.5
+                    B=10^-5*ones(length(x0),1); B([1:3])=1; B=diag(B); 
+                    
+                    
+                    T=.8;
+                    N=length(x0);
+                   % B=eye(length(x0)); B(5,5)=0; B(2,2)=0;
+                   % %1e-5*ones(length(x0),1); B(1)=1; AA=abs(A_s)+eye(size(A_s))
+                    [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, log(x0), log(xf), r, eye(length(A_s)));
+                    figure(1); imagesc(U_opt'); title('U'); 
+                    figure(2); imagesc(B); title('B');
+                    figure(3);
+                    %subplot(1,6,[2:5]); imagesc([X_opt(:,1:N)'])% imagesc(X_opt(:,2:N)'); title('X');
+                    subplot(1,6,[2:5]); imagesc([X_opt(1,1:N)',X_opt(end,1:N)'])
+                    cl=caxis;
+                    subplot(1,6,1); imagesc(log(x0)); title('x0'); caxis(cl)
+                    subplot(1,6,6); imagesc(log(xf)); title('xf');  caxis(cl)
+                    
+                    %%
+                    
+                    
                     nodeEnergy(n,i_traj,i_rho)=sum(vecnorm(B*U_opt').^2);
                     trajErr(n, i_traj,i_rho)=n_err;
                     
@@ -195,7 +220,7 @@ for i_set=i_ict
     end % end states loop
 end 
 
-save('Data/Energy.mat', 'Energy', 't_traj', 'rho', 'freq')
+save('Data/Energy.mat', 'Energy', 't_traj', 'rho', 'freq', 'info')
 disp('Energy Calc done')
 
 

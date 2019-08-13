@@ -244,10 +244,11 @@ hline(95)
 figure(3)
 imagesc(reshape([EnergyMetric.Metricconfidence],3,39)'<=5)
 yticks([1:39])
-blk=cellfun(@num2str, {Metric_matrices(i_ict).block}', 'UniformOutput', false);
-yticklabels(strcat({Metric_matrices(i_ict).ID}', {' '}, blk));
+blk=cellfun(@num2str, {EnergyMetric([1:39]).block}', 'UniformOutput', false);
+yticklabels(strcat({EnergyMetric([1:39]).ID}', {' '}, blk));
 xticklabels({'Phase1', 'Phase 2', 'Phase 3'})
 xticks([1:3])
+yticks([1:39])
 
 
 figure(2)
