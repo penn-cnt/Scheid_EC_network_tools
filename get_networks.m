@@ -75,6 +75,6 @@ for i_set=1:78
 end
 
 eval([Null, 'Networks=Networks']);
-save(sprintf('Data/%sNetworks.mat', Null), sprintf('%sNetworks', Null));
+save(sprintf('Data/Robustness/%sNetwork.mat', Null), sprintf('%sNetworks', Null), 'gamma');
 
 clear pcm triu_i t block type ID TT i_set networks N l Lwin lambdas Fs data

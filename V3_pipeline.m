@@ -1,5 +1,5 @@
 %% EC Controllability- V3 Pipeline
-
+dataFold='DataV3.2'
 cd('/Users/bscheid/Documents/LittLab/PROJECTS/p01_EC_controllability/v3/Code')
 Null='';
 addpath('pipeline_scripts')
@@ -7,17 +7,16 @@ addpath('helper_functions')
 
 % 1) Load Data 
 % run load_clean_data.m
-load('Data/dataSets_clean.mat')
-dataSets_clean= clean_EC_data;
-load('Data/subjects.mat')
+load(fullfile(dataFold,'dataSets_clean.mat'))
+load(fullfile(dataFold,'subjects.mat'))
 
 % 1.5) Generate Phase Randomized Null Data
 % run genNullModel.m
-load('Data/nullData.mat')
+%load(fullfile(dataFold,'nullData.mat'))
 %%
 % 2) Get Networks
 %run get_networks.m
-load(sprintf('Data/%sNetworks.mat', Null))
+load(sprintf('%s/%sNetworks.mat', dataFold,Null))
 
 % 3) Find Partitions
 % run dynamic_findSimComms.m
