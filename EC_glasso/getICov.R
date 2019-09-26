@@ -3,6 +3,7 @@ library(R.matlab)
 
 testmat<-readMat('tempSet.mat')
 data=testmat$data
+gamma=testmat$gamma
 N=dim(data)[1]
 networks<-array(NA,c(N,N,testmat$TT))
 lambdas<-array(NA, c(testmat$TT))
@@ -14,7 +15,7 @@ for (i in 1:testmat$TT){
   results <- estimateNetwork(
     t(window),
     default = "EBICglasso",
-    tuning = 0.5,
+    tuning = gamma,
     corMethod = "npn",
     lambda.min.ratio = 0.01,
     penalize.diagonal = TRUE)

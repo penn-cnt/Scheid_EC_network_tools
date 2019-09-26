@@ -6,13 +6,14 @@
 %load('Data/dataSets_clean.mat'); 
 dataSet= dataSets_clean;
 Null='';
+gamma=.25
 %load('Data/nullData.mat'); dataSet= nullData; 
 %load('Data/subjects.mat')
 
 %%
 
 %Networks=struct();
-for i_set=67
+for i_set=[1,2,7,9,10]
     fprintf('inds %d\n',i_set)
     %try
 
@@ -26,7 +27,7 @@ for i_set=67
     block=dataSet(i_set).block;
     
 
-    save('EC_glasso/tempSet.mat', 'data', 'TT', 'Lwin')
+    save('EC_glasso/tempSet.mat', 'data', 'TT', 'Lwin', 'gamma')
 
    
     % Call R script, this will take in the data set and return a network

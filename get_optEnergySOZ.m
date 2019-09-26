@@ -242,7 +242,6 @@ for j=[Inf]
     
 figure(min(90,j)*17)
 pcnts=[EnergySOZ.SOZconfidence];
-sumSig=sum(pcnts>cb)+sum(pcnts<(100-cb));
 %scatter(repmat([1:3],1,18)+normrnd(0,.05, [1,54]),  pcnts, 60, repmat(copper(18),3,1), 'filled')
 scatter(repmat([1:3],1,nsoz)+normrnd(0,.05, [1,3*nsoz]),  pcnts, 25,'blue')
 %title(sprintf('Energy SOZ Permutation Test (all windows) significance',j))
@@ -257,7 +256,7 @@ hline(cb)
 figure(min(90,j)*17+1)
 hold on
 imagesc(reshape([EnergySOZ.SOZconfidence],3,nsoz)');
-plot([1:3],(reshape([EnergySOZ.SOZconfidence],3,nsoz)'<=(100-cb)).*repmat([1:18]',1,3), '*', 'color', 'white')
+plot([1:3],(reshape([EnergySOZ.SOZconfidence],3,nsoz)'<=(100-cb)).*repmat([1:18]',1,3), '*', 'color', 'red')
 yticks([1:nsoz])
 blk=cellfun(@num2str, {EnergySOZ(i_soz).block}', 'UniformOutput', false);
 yticklabels(strcat({EnergySOZ(i_soz).ID}', {' '}, blk));
@@ -454,8 +453,8 @@ for m=1:length(metrics)
     plot([1:3], (SOZMetp(i_soz,:)<=0.05).*repmat([1:length(i_soz)]',1, 3), '*', 'color', 'black');
     title( metrics{m})
     axis tight
-    blk=cellfun(@num2str, {Metric_matrices(i_soz).block}', 'UniformOutput', false);
-    yticklabels(strcat({Metric_matrices(i_soz).ID}', {' '}, blk));
+    blk=cellfun(@num2str, {EnergySOZ(i_soz).block}', 'UniformOutput', false);
+    yticklabels(strcat({EnergySOZ(i_soz).ID}', {' '}, blk));
     yticks([1:18])
     set(gca,'TickLabelInterpreter','none')
     xticks([1:3])

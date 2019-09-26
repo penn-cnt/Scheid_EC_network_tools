@@ -25,6 +25,7 @@ addpath(genpath('~/Documents/CODE/'))
 
 cols=[[75,184,166];[255,168,231]; [36,67,152];[140,42,195];[121,29,38];[242,224,43];[74,156,85];...
    [80,80,80]; [255,255,255]]/255;
+i_soz=[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 25 26 28];
 
 i_ict=find(strcmp({Partitions.type},'ictal'));
 i_preict=find(strcmp({Partitions.type},'preictal'));
@@ -164,7 +165,7 @@ for i_set=1:nSets
 end
 
 %% Show SOZ in data
-for i_set=a
+for i_set=i_ict
     i_set
     st= Partitions(i_set).states;
         Fs=round( dataSets_clean(i_set).Fs);
@@ -268,7 +269,7 @@ for i_set=1:nSets
     end
 end
 
-display='on';
+display='off';
 %metrics={'optEnergy'}
 % Get group level averages
 for i=6% 1:length(metrics)
@@ -382,13 +383,12 @@ for type={'i_ict', 'i_preict'} %, 'i_null'
         
         h=boxplot(eval(['glob.',metrics{i},'(', type{1},',:)']), ...
             {'Phase 1', 'Phase 2', 'Phase 3'}, 'Colors', cols(1:3,:), ...
-            'Symbol', 'x');%, ...
-           % 'dataLim', [minLim, maxLim]);
+            'Symbol', 'x', ...
+            'dataLim', [minLim, maxLim]);
         set(h,{'linew'},{2})
         ylabel([metrics{i}, ' zscore'])
         title(metrics{i})
         cs=eval(['c_',type{1},'_glob.',metrics{i}]);
-        paval_test(ics(:,6)
         sigstar(num2cell(cs(cs(:,6)<=alpha,[1:2]),2));
         %ylim([min(eval(['glob.',metrics{i},'(:)']))*1.1, max(eval(['glob.',metrics{i},'(:)'])*1.2)])
     end
@@ -457,37 +457,45 @@ title(sprintf('Corr values between %s and %s', metric1, metric2))
 %% View Nodes and Values spatially  %%
 figure(1)
 clf;
-metrics={'strengthNeg'};
+metrics={'optEnergySOZ'};
 cmap=colormap; 
-for i_set=1:39
+for i_set=i_soz %1:39
     figure(1)
     clf; hold on
     if isempty(dataSets_clean(i_set).sozGrid)
         continue
     end
     for m=1:length(metrics)
-        st=State_metrics(i_set).strengthPos+State_metrics(i_set).strengthNeg;
-        %State_metrics(i_set).(metrics{m});
+        %st=State_metrics(i_set).strengthPos+State_metrics(i_set).strengthNeg;
+        st=State_metrics(i_set).(metrics{m});
         %st=abs(State_metrics(i_set).(metrics{m})-State_metrics(i_set+39).(metrics{m})(:,1));
         c_met=1+reshape(round(63*rescale(st(:))), size(st));
         clims=[min(st(:)), max(st(:))];
         X=dataSets_clean(i_set).gridCoords(:,1);
         Y=dataSets_clean(i_set).gridCoords(:,2);
+        
+        soz=dataSets_clean(i_set).sozGrid; 
+        ctrl=diag(getSpreadControl([X,Y],soz)); 
+        
         for s=3:-1:1
             subplot(length(metrics),3,((m-1)*3+s))
             colormap parula
             hold on
-            scatter(X,Y,c_met(:,s)+80, st(:,s), 'filled')
+           
+            % Show control gradient
+            scatter(X, Y, 500*ctrl, 'b', 'filled')
+            
+            % Show metric
+            %scatter(X,Y,c_met(:,s)+80, st(:,s), 'filled')
+            
               % Show control metric value
 %             scatter(X(EnergyMetric(i_set).aveCtrl_NOI(:,s)), ...
-%                  Y(EnergyMetric(i_set).aveCtrl_NOI(:,s)),100, 'r')   
+%                  Y(EnergyMetric(i_set).aveCtrl_NOI(:,s)),100, 'r')
+
               % Show soz
-              scatter(X(dataSets_clean(i_set).sozGrid), ...
-                  Y(dataSets_clean(i_set).sozGrid),100, 'r')
-              % Show control gradient
-              ctrl=getSpreadControl(dataSets(i_set).
-              scatter(X(dataSets_clean(i_set).sozGrid), ...
-                  Y(dataSets_clean(i_set).sozGrid),100, 'r')
+              scatter(X(soz), Y(soz),100, 'r')
+              
+
               
               
             xticklabels([]); yticklabels([])
