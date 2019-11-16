@@ -3,13 +3,14 @@
 cd '/Users/bscheid/Documents/LittLab/PROJECTS/p01_EC_controllability/v3/Code'
 
 Null='';
-load('Data/dataSets_clean.mat');
-load('Data/subjects.mat')
-load(sprintf('Data/%sNetworks.mat', Null)); 
-load(sprintf('Data/%sWPartitionsUEO.mat', Null));
-load(sprintf('Data/%sMetric_matrices.mat', Null)); 
-load(sprintf('Data/%sState_metrics.mat', Null))
-load('Data/avgDist.mat');
+datafold='DataV3.2';
+load(sprintf('%s/dataSets_clean.mat', datafold));
+load(sprintf('%s/subjects.mat', datafold))
+load(sprintf('%s/%sNetworks.mat',datafold, Null)); 
+load(sprintf('%s/%sWPartitionsUEO.mat', datafold, Null));
+load(sprintf('%s/%sMetric_matrices.mat', datafold, Null)); 
+load(sprintf('%s/%sState_metrics.mat', datafold, Null))
+load('%s/avgDist.mat');
 
 eval(['Networks=', Null, 'Networks'])
 eval(['Partitions=', Null, 'Partitions'])
@@ -227,16 +228,16 @@ end
 %% Is there a difference between states? (creates glob,c_i_preict_glob, i_ict_glob)
 
 ctype='bonferroni';
-display='off';
+display= 'off';
 
 analysis=struct();
 diffs=struct();
 glob=struct(); c_i_preict_glob=struct(); c_i_ict_glob=struct();
-metrics={'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'optEnergySOZ'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
+metrics={'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'}; %'optEnergySOZ'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
 
 for i_set=1:nSets
     
-    s=State_metrics(i_set);
+    s= State_metrics(i_set);
     if isempty(s.aveCtrl)
         continue
     end
@@ -272,7 +273,7 @@ end
 display='off';
 %metrics={'optEnergy'}
 % Get group level averages
-for i=6% 1:length(metrics)
+for i=1:length(metrics)
     if contains(metrics{i}, 'SOZ')
         %SOZ
         % ictal 
@@ -303,10 +304,11 @@ end
     
 disp('done')
 %% Display results of Friedman's test individually
+
 ctr=1;
 alpha=.05; 
 
-metrics={'aveCtrl', 'modalCtrl','optEnergy', 'strength'}
+metrics= {'aveCtrl', 'modalCtrl','optEnergy', 'strength'}
 
 
 for type=[i_ict', i_preict']
@@ -359,13 +361,16 @@ end
 disp('done')
 %% Group Level Trends Ictal preictal, and null model
 
-ctr=6;
-alpha=0.05
+% 
+% Boxplot visualization of group level trends using Friedman's test. 
 
-%metrics={ 'optEnergy'} %aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
-metrics={'optEnergySOZ'}
+fig_ctr=6;
+alpha=0.05;
+
+metrics= {'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
+%metrics={'optEnergySOZ'}
 for type={'i_ict', 'i_preict'} %, 'i_null'
-    figure(ctr); clf;
+    figure(fig_ctr); clf;
     for i=1:length(metrics)
         subplot(1,length(metrics),i);
         hold on
@@ -393,8 +398,28 @@ for type={'i_ict', 'i_preict'} %, 'i_null'
         %ylim([min(eval(['glob.',metrics{i},'(:)']))*1.1, max(eval(['glob.',metrics{i},'(:)'])*1.2)])
     end
     suptitle([type{1}(3:end), 'al'])
-    ctr= ctr+2;
+    fig_ctr= fig_ctr+2;
 end
+
+%% Fit a Linear Mixed model to metrics
+
+% Get table with (ID, Phase, Metric)
+metrics= {'aveCtrl', 'modalCtrl','optEnergy', 'strength'};
+for m= metrics
+    varnames= {m{1},'Phase', 'ID'};
+    tbl=table([],[],[],'VariableNames', varnames); 
+    for i=i_ict
+        tbl= [tbl; table(mean(State_metrics(i).(m{1})(:,1:3))', [1:3]', repmat(string(Metric_matrices(i).ID),3,1), ...
+            'VariableNames', varnames)];
+    end
+
+    tbl.Phase = categorical(tbl.Phase); 
+    tbl.ID = categorical(tbl.ID);
+    
+lme = fitlme(tbl, sprintf('%s ~ 1 + Phase + (1|ID)', m{1}))
+
+end
+
 
 %% Is there a correlation between metrics?
 clf
