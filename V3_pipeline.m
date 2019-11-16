@@ -2,6 +2,8 @@
 
 cd('/Users/bscheid/Documents/LittLab/PROJECTS/p01_EC_controllability/v3/Code')
 Null='';
+addpath('pipeline_scripts')
+addpath('helper_functions')
 
 % 1) Load Data 
 % run load_clean_data.m
