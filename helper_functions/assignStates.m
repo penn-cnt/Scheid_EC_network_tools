@@ -8,6 +8,15 @@ function [s]= assignStates(st)
     
     l=length(st);
     u=unique(st);
+    if u==0 
+        s.states=st(:);    
+        s.contigStates=st(:); 
+        s.stateLens=length(st);
+        s.stateMedian=length(st)/2;
+        s.runLen=length(st);
+        s.stateRuns=[0, length(st)];
+        return
+    end
     nStates=length(u);
     [runstates, runLength]=RunLength(st(:)');
     stateRuns=[runstates;runLength];
@@ -32,7 +41,7 @@ function [s]= assignStates(st)
     % get contiguous states (maximum runs)
     contigSt=zeros(1,length(st));
     bnds= [[1,cumsum(stateRuns(2,1:end-1))+1]', cumsum(stateRuns(2,:))']; % run bounds
-    for x=u'
+    for x=u(:)'
         bnd=bnds(stateRuns(1,:)==x,:); 
         mxbnd=bnd(mxRunIdx(x),:);
         contigSt(mxbnd(1):mxbnd(2))=tran(x);

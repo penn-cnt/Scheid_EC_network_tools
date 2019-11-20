@@ -166,7 +166,7 @@ for i_set=1:nSets
 end
 
 %% Show SOZ in data
-for i_set=i_ict
+for i_set=1:nSets %i_ict
     i_set
     st= Partitions(i_set).states;
         Fs=round( dataSets_clean(i_set).Fs);
@@ -187,7 +187,12 @@ for i_set=i_ict
     end
     stem([(diff(st)~=0)]*1000*N,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
     title(sprintf('HUP %s, %d', d.ID, d.block)); axis tight
+    
+    figure(10); 
+    imagesc(st)
     pause
+    
+    
 end
 
 %% Display Kurtosis

@@ -62,16 +62,19 @@ for i_set=[1,2,7,9,10]
 
 end
 
+
 % Weight similarity matrices with linear weighting 
-for i_set=1:78
-    N=Networks(i_set).sim;
-    NN=zeros(length(N)); 
-    for i =1:length(N)
-        for j =1:length(N)
-            NN(i,j)=N(i,j)*((1 - abs(i-j)/length(N))^2);    
+for i_set=1:length(Networks)
+    sim=Networks(i_set).sim;
+    for b=betas
+        Wsim=zeros(length(sim)); 
+        for i =1:length(sim)
+            for j =1:length(sim)
+                Wsim(i,j)=sim(i,j)*((1 - b*abs(i-j)/length(sim))^2);    
+            end
         end
+        Networks(i_set).(sprintf('wSim_%s', replace(string(b), '.', '_')))= Wsim;
     end
-    Networks(i_set).wSim=NN; 
 end
 
 eval([Null, 'Networks=Networks']);
