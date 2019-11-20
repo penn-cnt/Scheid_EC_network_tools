@@ -4,9 +4,10 @@
 load('Data/dataSets_clean.mat');
 
 %subset=[1,2,7,9,10,14,16,20,21,23,27,37]
-subset=[1,7,10,14,20,21,37];
+%subset1=[1,7,10,14,20,21,37];
+subset=[2,9,16,23,27];
 all=[1:78];
-subset=all(~ismember(all, subset))
+%subset=all(~ismember(all, subset))
 
 betas= [0, .01, .05, .1, .5];
 gammas= [ 0, .1, .25, .5, .75];
@@ -35,25 +36,48 @@ gammaStr=replace(string(gammas), '.', '_');
 % imagesc(partitions.states)
 
 
+
 %% Generate Networks for different Gammas and Betas
 for gamma = gammas
     
-     ctr=6;
-%      load(sprintf('Data/Robustness/Network_%s.mat',...
-%             replace(string(gamma), '.', '_')), 'Network')
-
-     for i_set=[[21,37], subset+39]
+     ctr=15;
+     load(sprintf('Data/Robustness/Network_%s.mat',...
+            replace(string(gamma), '.', '_')), 'Network')
+        
+     for i_set=[subset(1:end), subset+39]
         % Get different Gammas
         d=dataSets_clean(i_set);
         n=getNets(pwd, d.data, d.Fs, gamma, betas);
         n.ID=d.ID; n.type=d.type; n.block=d.block; n.Fs=d.Fs;
-        Network(ctr)=n; 
+        if ismember('wSim_1', fieldnames(Network))
+            n.wSim_1=[]; n.wSim_0_25=[]; n.wSim_0_75=[];
+        end
+        if ~ismember('wSim_0_5', fieldnames(Network))
+            n=rmfield(n,'wSim_0_5')
+        end
+        Network(ctr)=orderfields(n, Network(1));
         ctr=ctr+1;  
      end % end i_set
          
     save(sprintf('Data/Robustness/Network_%s.mat',...
         replace(string(gamma), '.', '_')), 'Network')
 end
+
+
+% Reorder at end
+for gamma = gammas
+    
+     load(sprintf('Data/Robustness/Network_%s.mat',...
+            replace(string(gamma), '.', '_')), 'Network')
+     
+        T = struct2table(Network); % convert the struct array to a table
+        sortedT = sortrows(T, 'ID'); sortedT = sortrows(sortedT, 'type');
+        Network = table2struct(sortedT);
+        
+            save(sprintf('Data/Robustness/Network_%s.mat',...
+        replace(string(gamma), '.', '_')), 'Network')
+end
+
 
 %% Add/update Wsims
 
@@ -115,4 +139,19 @@ for b=1:length(betas)
 end
 
     save(sprintf('Data/Robustness/Partitions_%s.mat',gammaStr{g}), 'Partitions')
+end
+
+%% Reorder Partitions
+% Reorder at end
+for gamma = gammas
+    
+     load(sprintf('Data/Robustness/Partitions_%s.mat',...
+            replace(string(gamma), '.', '_')), 'Partitions')
+     
+        T = struct2table(Partitions); % convert the struct array to a table
+        sortedT = sortrows(T, 'ID'); sortedT = sortrows(sortedT, 'type'); sortedT= sortrows(sortedT,'beta'); 
+        Partitions = table2struct(sortedT);
+        
+            save(sprintf('Data/Robustness/Partitions_%s.mat',...
+        replace(string(gamma), '.', '_')), 'Partitions')
 end
