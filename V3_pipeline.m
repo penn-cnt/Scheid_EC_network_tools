@@ -21,6 +21,35 @@ load(sprintf('%s/%sNetworks.mat', dataFold,Null))
 % 3) Find Partitions
 % run dynamic_findSimComms.m
 % run get_states.m
+for b=1:length(betas)
+    ii = length(Network)*(b-1);
+    for i_set=2:length(Network)
+        d= Network(i_set);
+        sim= Network(i_set).(sprintf('wSim_%s',betaStr{b}));
+        n= findSimComms(sim, (0.8:.05:1.05), 100, 3);
+        n.ID=d.ID; n.type=d.type; n.block=d.block; n.Fs=d.Fs;
+        n.beta= betaStr{b}; 
+        
+        %Get assignments to three (or more) states
+        nUnique= arrayfun(@(x)length(unique(n.consensusQcomms(:,x))),(1:length(n.gamma)));
+        st= p.consensusQcomms(:,find(nUnique>=nStates,1,'first'))';
+
+        % Check if median comms contains correct num of communities
+        if isempty(st)
+            nUnique=arrayfun(@(x)length(unique(n.medianQcomms(:,x))),(1:length(n.gamma)));
+            st=n.medianQcomms(:,find(nUnique>=nStates,1,'first'))';
+        end
+
+        s=assignStates(st);
+        Partitions(ii+i_set)= mergeStructs(n, s); 
+    end
+end
+
+
+
+
+
+
 load(sprintf('Data/%sPartitions.mat', Null))
 
 % 4) Compute Metrics
