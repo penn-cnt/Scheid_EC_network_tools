@@ -5,7 +5,8 @@ function [Networks]=getNets(path, data, Lwin, gamma, beta)
 % data- Nxl data matrix, N channels, l-time samples
 % Lwin- time window to create network over,
 % gamma- EBIC parameter, 0.1-less regularization, 0.5-more regularization
-% beta- tune the intensity of distance weighting for community detection
+% beta- tune the intensity of distance weighting for community detection,
+% can be a scalar or row vector of values to compute.
 
     Networks=struct();
 
@@ -41,14 +42,17 @@ function [Networks]=getNets(path, data, Lwin, gamma, beta)
    
     Networks.sim=corrcoef(Networks.config_pcm).*~eye(TT);
     
-    sim=Networks.sim;
-    Wsim=zeros(length(sim)); 
-    for i =1:TT
-        for j =1:TT
-            Wsim(i,j)=sim(i,j)*((1 - beta*abs(i-j)/length(sim))^2);    
+    sim= Networks.sim;
+    for b=beta
+        Wsim= zeros(length(sim)); 
+        for i =1:length(sim)
+            for j =1:length(sim)
+                Wsim(i,j)=sim(i,j)*((1 - b*abs(i-j)/length(sim))^2);    
+            end
         end
+        Networks.(sprintf('wSim_%s', replace(string(b), '.', '_')))= Wsim;
     end
-    Networks.wSim=Wsim; 
+    
 
 end
 
