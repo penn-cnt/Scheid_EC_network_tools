@@ -3,11 +3,11 @@
 cd '/Users/bscheid/Documents/LittLab/PROJECTS/p01_EC_controllability/v3/Code'
 
 Null='';
-datafold='DataV3.2';
+datafold='Data';
 load(sprintf('%s/dataSets_clean.mat', datafold));
-load(sprintf('%s/subjects.mat', datafold))
+load(sprintf('%s/subjects.mat', 'DataV3.2'));
 load(sprintf('%s/%sNetworks.mat',datafold, Null)); 
-load(sprintf('%s/%sWPartitionsUEO.mat', datafold, Null));
+load(sprintf('%s/%sPartitions.mat', datafold, Null));
 load(sprintf('%s/%sMetric_matrices.mat', datafold, Null)); 
 load(sprintf('%s/%sState_metrics.mat', datafold, Null))
 load('%s/avgDist.mat');
@@ -24,12 +24,16 @@ eval(['State_metrics=', Null, 'State_metrics'])
 
 addpath(genpath('~/Documents/CODE/'))
 
-cols=[[75,184,166];[255,168,231]; [36,67,152];[140,42,195];[121,29,38];[242,224,43];[74,156,85];...
+% cols=[[75,184,166];[255,168,231]; [36,67,152];[140,42,195];[121,29,38];[242,224,43];[74,156,85];...
+%    [80,80,80]; [255,255,255]]/255;
+cols=[[227,187,187]; [190,8,4]; [138,4,4];[140,42,195];[75,184,166];[242,224,43];[74,156,85];...
    [80,80,80]; [255,255,255]]/255;
-i_soz=[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 25 26 28];
+
+i_soz=true(1,39); i_soz(16)=false; i_soz= find(i_soz);
 
 i_ict=find(strcmp({Partitions.type},'ictal'));
 i_preict=find(strcmp({Partitions.type},'preictal'));
+wSim='wSim_0_01'; % default sim network. 
 
 nSets=length(Partitions);
 nIct=nSets/2;
@@ -73,9 +77,18 @@ std_sz_length=std(cellfun(@(x)size(x,3), {Networks(i_ict).pcm}))
 avg_sz_N=mean(cellfun(@(x)size(x,2), {Networks(i_ict).pcm}))
 std_sz_N=std(cellfun(@(x)size(x,2), {Networks(i_ict).pcm}))
 
+% Calculate % coverage of top 3 contiguous communities
+ictal_contig_coverage=arrayfun(@(x)sum(Partitions(x).runLen), [1:nIct]); 
+preictal_contig_coverage=arrayfun(@(x)sum(Partitions(x).runLen), [nIct+1:nSets]);
+
+[mean(ictal_contig_coverage), std(ictal_contig_coverage)]
+[mean(preictal_contig_coverage), std(preictal_contig_coverage)]
+
 stateTable=table([mn_len', std_len'], [mn_med', std_med'], [mn_lenpi', std_lenpi'], [mn_medpi', std_medpi'],...
-    'VariableNames', {'ictal_longest_run', 'ictal_med_value','preictal_longest_run',...
-    'preictal_med_value'})
+    'VariableNames', {'ictal_longest_run', 'ictal_med_value','preictal_longest_run','preictal_med_value'}, ...
+    'RowNames', {'st1', 'st2', 'st3'})
+sum(table2array(stateTable(:,:)))
+
 writetable(stateTable,'Data/stateTable.csv')
 
 clear mn_len mn_med mn_lenpi mn_medpi labels x_ict y_ict x_preict y_preict meds_preict lens_preict ...
@@ -138,7 +151,9 @@ for i_set=1:nSets
     end
     sozGrid=find(dataSets_clean(i_set).sozGrid);
     plot((0:length(data)-1)/Fs,data+(1:1000:1000*(N)));
-    plot((0:length(data)-1)/Fs,data(:, sozGrid)+1000*(sozGrid-1)', 'c');
+    if ~isempty(sozGrid)
+        plot((0:length(data)-1)/Fs,data(:, sozGrid)+1000*(sozGrid-1)', 'c');
+    end
     stem([(diff(st)~=0)]*1000*N,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
     title('Signal'); axis tight
 
@@ -147,11 +162,11 @@ for i_set=1:nSets
     imagesc(Networks(i_set).config_pcm)
     set(gca,'colorscale','log')
     stem((diff(st)~=0)*(N*(N-2))/2,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
-    title('Icov'); axis tight
+    title('regular. PCM'); axis tight
     
     % Similarity Matrix
     subplot(n,m,(n*m)); hold on
-    imagesc(Networks(i_set).wSim)
+    imagesc(Networks(i_set).(wSim))
     set(gca,'colorscale','log')
     stem((diff(st)~=0)*T,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
     title('Sim'); axis tight 
@@ -169,7 +184,7 @@ end
 for i_set=1:nSets %i_ict
     i_set
     st= Partitions(i_set).states;
-        Fs=round( dataSets_clean(i_set).Fs);
+        Fs=round(dataSets_clean(i_set).Fs);
         d=dataSets_clean(i_set);
     if strcmp(dataSets_clean(i_set).type, 'ictal')
         stDiff=round(dataSets_clean(i_set).UEOStart-dataSets_clean(i_set).EECStart);
@@ -183,13 +198,14 @@ for i_set=1:nSets %i_ict
     sozGrid=find(dataSets_clean(i_set).sozGrid);
     plot((0:length(data)-1)/Fs,data+(1:1000:1000*(N)));
     if ~isempty(sozGrid)
+        sum(sozGrid)
         plot((0:length(data)-1)/Fs,data(:, sozGrid)+1000*(sozGrid-1)', 'c');
     end
     stem([(diff(st)~=0)]*1000*N,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
     title(sprintf('HUP %s, %d', d.ID, d.block)); axis tight
     
     figure(10); 
-    imagesc(st)
+    imagesc(Partitions(i_set).contigStates); axis off
     pause
     
     
@@ -313,7 +329,7 @@ disp('done')
 ctr=1;
 alpha=.05; 
 
-metrics= {'aveCtrl', 'modalCtrl','optEnergy', 'strength'}
+metrics= {'aveCtrl', 'modalCtrl', 'strength'} % optEnergy'
 
 
 for type=[i_ict', i_preict']

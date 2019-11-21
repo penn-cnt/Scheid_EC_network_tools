@@ -2,14 +2,8 @@
 
 Null=''; % set to 'Null' to perform on null model, and '' otherwise
 nStates=3;
-% load(sprintf('Data/%sPartitions.mat', Null))
+load(sprintf('Data/%sPartitions.mat', Null))
 % eval(['Partitions=', Null, 'Partitions;']) 
-% nSets=length(Partitions);
-
-gammas={'0','0_1', '0_25', '0_5'};
-
-for g=1:length(gammas)
-load(sprintf('Data/Robustness/Partitions_%s.mat',gammas{g}))
 
 for i_set=1:length(Partitions)
     p=Partitions(i_set);
@@ -72,8 +66,7 @@ end
 
 disp('Done')
 % eval([Null,'Partitions=Partitions;'])
-save(sprintf('Data/Robustness/Partitions_%s.mat',gammas{g}), sprintf('%sPartitions', Null),...
-     'nStates')
-end
+save('Data/Partitions.mat', sprintf('%sPartitions', Null),'nStates', '-append')
+
 % disp('done')
 % clear tran u f idx l p st nUnique top3 stateRuns runstates runLength 

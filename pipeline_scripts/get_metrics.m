@@ -2,15 +2,15 @@
 
 Null='' % set string to 'Null' if computing on null model, else set empty
 
-% load(sprintf('Data/%sNetworks', Null))
-% load(sprintf('Data/%sPartitions', Null))
+load(sprintf('Data/%sNetworks', Null))
+load(sprintf('Data/%sPartitions', Null))
 % 
 % eval(['Networks=', Null, 'Networks;']);
 % eval(['Partitions=', Null, 'Partitions;']);
 
-% nSets=length(Partitions);
-% metric_matrices= struct(); 
-% state_metrics=struct();
+nSets=length(Partitions);
+metric_matrices= struct(); 
+state_metrics=struct();
 
 thresh=0.15;     % Threshold for transient/persistent mode selection
 dt=1;        %
@@ -27,10 +27,8 @@ for i_set=1:nSets
     metric_matrices(i_set).block= Net.block; State_metrics(i_set).block=Net.block;
         
     config=  Net.config_pcm;
-    icov=    Net.icov;
     pcm=     Net.pcm;
-    sim=     Net.wSim;
-    [N, ~, T]=       size(pcm);
+    [N, ~, T]= size(pcm);
    
    metrics={'globalCtrl', 'aveCtrl', 'modalCtrl', 'pModalCtrl', 'tModalCtrl',...
        'strength', 'strengthPos', 'strengthNeg', ...        % Network metrics %
@@ -129,7 +127,7 @@ end
 
 eval([Null,'Metric_matrices= metric_matrices']);
 eval([Null,'State_metrics= state_metrics']);
-% save(sprintf('Data/%sMetric_matrices.mat', Null), sprintf('%sMetric_matrices', Null))
-% save(sprintf('Data/%sState_metrics.mat', Null), sprintf('%sState_metrics', Null))
+save(sprintf('Data/%sMetric_matrices.mat', Null), sprintf('%sMetric_matrices', Null))
+save(sprintf('Data/%sState_metrics.mat', Null), sprintf('%sState_metrics', Null))
 
 disp('done')
