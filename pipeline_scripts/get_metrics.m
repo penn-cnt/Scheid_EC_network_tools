@@ -10,25 +10,28 @@ load(sprintf('Data/%sPartitions', Null))
 
 nSets=length(Partitions);
 metric_matrices= struct(); 
-state_metrics=struct();
+State_metrics=struct();
+
 
 thresh=0.15;     % Threshold for transient/persistent mode selection
 dt=1;        %
 
-for i_set=1:nSets
+for i_set=1:3; %:length(Partitions)
     fprintf('inds %d\n',i_set)
     clear skewness kurtosis % clear to avoid func. ambiguity
     
-    Net= Networks(i_set);
+    p= Partitions(i_set);
+    Net=Network(mod([1,22:25]-1, nSets)+1); 
     
     % Initialize metric structs
-    metric_matrices(i_set).ID= Net.ID; State_metrics(i_set).ID=Net.ID;    
-    metric_matrices(i_set).type= Net.type; State_metrics(i_set).type=Net.type; 
-    metric_matrices(i_set).block= Net.block; State_metrics(i_set).block=Net.block;
+    metric_matrices(i_set).ID= p.ID; State_metrics(i_set).ID=p.ID;    
+    metric_matrices(i_set).type= p.type; State_metrics(i_set).type=p.type; 
+    metric_matrices(i_set).block=p.block; State_metrics(i_set).block=p.block;
+    metric_matrices(i_set).beta=p.beta; State_metrics(i_set).beta=p.beta;
         
     config=  Net.config_pcm;
-    pcm=     Net.pcm;
-    [N, ~, T]= size(pcm);
+    pcm=     Net.pcm;  
+    [N, ~, T]=       size(pcm);
    
    metrics={'globalCtrl', 'aveCtrl', 'modalCtrl', 'pModalCtrl', 'tModalCtrl',...
        'strength', 'strengthPos', 'strengthNeg', ...        % Network metrics %
@@ -119,9 +122,9 @@ for i_set=1:nSets
     % Populate metric and state average structs
     for m=metrics
         eval(sprintf('metric_matrices(i_set).%s=%s;',m{1},m{1}));
-        eval(sprintf('state_metrics(i_set).%s=stAvg(%s);',m{1},m{1}));
+        eval(sprintf('State_metrics(i_set).%s=stAvg(%s);',m{1},m{1}));
         % Get Zscore
-        eval(sprintf('state_metrics(i_set).%sZ=stAvg((%s-mean(%s(:)))/std(%s(:)));',m{1},m{1},m{1},m{1}));
+        eval(sprintf('State_metrics(i_set).%sZ=stAvg((%s-mean(%s(:)))/std(%s(:)));',m{1},m{1},m{1},m{1}));
     end
    
 end

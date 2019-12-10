@@ -2,6 +2,7 @@
 
 % SETTINGS %
 load('Data/dataSets_clean.mat');
+addpath('helper_functions'); addpath('pipeline_scripts')
 
 %subset=[1,2,7,9,10,14,16,20,21,23,27,37]
 %subset1=[1,7,10,14,20,21,37];
@@ -9,11 +10,12 @@ subset=[2,9,16,23,27];
 all=[1:78];
 %subset=all(~ismember(all, subset))
 
-betas= [0, .01, .05, .1, .5];
+betas= [0, .01, .05, .1];
 gammas= [ 0, .1, .25, .5, .75];
 
 betaStr=replace(string(betas), '.', '_');
 gammaStr=replace(string(gammas), '.', '_');
+nSets=24; 
 
 %%  Run Single Trial: 
 % i_set= 5;
@@ -59,8 +61,8 @@ for gamma = gammas
         ctr=ctr+1;  
      end % end i_set
          
-    save(sprintf('Data/Robustness/Network_%s.mat',...
-        replace(string(gamma), '.', '_')), 'Network')
+    %save(sprintf('Data/Robustness/Network_%s.mat',...
+       % replace(string(gamma), '.', '_')), 'Network')
 end
 
 
@@ -98,7 +100,7 @@ load(sprintf('Data/Robustness/Network_%s.mat',gammaStr{g}))
             Network(i_set).(sprintf('wSim_%s', replace(string(b), '.', '_')))= Wsim;
         end
 
-    save(sprintf('Data/Robustness/Network_%s.mat',gammaStr{g}), 'Network')
+    %save(sprintf('Data/Robustness/Network_%s.mat',gammaStr{g}), 'Network')
     end
 end
 
@@ -116,9 +118,10 @@ load(sprintf('Data/Robustness/Partitions_%s.mat',gammaStr{g}))
 
 for b=1:length(betas)
     ii = length(Network)*(b-1);
-    for i_set=2:length(Network)
+    for i_set=1:length(Network)
         d= Network(i_set);
         sim= Network(i_set).(sprintf('wSim_%s',betaStr{b}));
+        
         n= findSimComms(sim, (0.8:.05:1.05), 100, 3);
         n.ID=d.ID; n.type=d.type; n.block=d.block; n.Fs=d.Fs;
         n.beta= betaStr{b}; 
@@ -138,8 +141,40 @@ for b=1:length(betas)
     end
 end
 
-    save(sprintf('Data/Robustness/Partitions_%s.mat',gammaStr{g}), 'Partitions')
+    %save(sprintf('Data/Robustness/Partitions_%s.mat',gammaStr{g}), 'Partitions')
 end
+
+%% State (re)Assignment
+for g=1:length(gammas)
+
+fprintf('Glasso gamma %s \n', gammaStr{g})
+load(sprintf('Data/Robustness/Partitions_%s.mat',gammaStr{g}))
+
+for b=1:length(betas)
+    ii = nSets*(b-1);
+    for i_set=1:nSets
+        p=Partitions(ii+i_set); 
+
+        
+        %Get assignments to three (or more) states
+        nUnique= arrayfun(@(x)length(unique(p.consensusQcomms(:,x))),(1:length(p.gamma)));
+        st= p.consensusQcomms(:,find(nUnique>=nStates,1,'first'))';
+
+        % Check if median comms contains correct num of communities
+        if isempty(st)
+            nUnique=arrayfun(@(x)length(unique(n.medianQcomms(:,x))),(1:length(p.gamma)));
+            st=n.medianQcomms(:,find(nUnique>=nStates,1,'first'))';
+        end
+        disp(nUnique(find(nUnique>=nStates,1,'first')))
+
+         s=assignStates(st);
+         Partitions(ii+i_set)= mergeStructs(n, s); 
+    end
+end
+
+%     save(sprintf('Data/Robustness/Partitions_%s.mat',gammaStr{g}), 'Partitions')
+end
+
 
 %% Reorder Partitions
 % Reorder at end
@@ -155,3 +190,25 @@ for gamma = gammas
             save(sprintf('Data/Robustness/Partitions_%s.mat',...
         replace(string(gamma), '.', '_')), 'Partitions')
 end
+
+%% Calculate Metrics 
+
+% Get metrics
+for g=4 %1:length(gammas)
+
+    fprintf('Glasso gamma %s \n', gammaStr{g})
+    load(sprintf('Data/Robustness/Partitions_%s.mat',gammaStr{g}))
+    load(sprintf('Data/Robustness/Network_%s.mat',gammaStr{g}))
+
+    % Note, metrics.m has been changed for use with robustness measures
+    run get_metrics.m
+
+    save(sprintf('Data/Robustness/Metric_matrices_%s.mat',gammaStr{g}), 'Metric_matrices')
+    save(sprintf('Data/Robustness/Setric_matrices_%s.mat',gammaStr{g}), 'State_matrices')
+
+end
+
+
+
+
+
