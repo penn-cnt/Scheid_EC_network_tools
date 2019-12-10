@@ -17,6 +17,13 @@ dataSets_clean.mat:
 - toIgnore: all channelnames to ignore
 - cleanGridNames: names of grids with toIgnore removed
 
+Metric_matrices.mat:
+
+
+State_metrics.mat:
+- Each metric column includes the average of metric values from all networks in each of three largest contiguous states.  
+- The Zscored column includes the average of metric values from all networks in each of three largest contiguous states AFTER
+all metric values have been zscored across the entire matrix. 
 
 patients.mat: (not included, find in DataV3.2), includes ALL channel names and ALL gridNames/coords (note ignored coords are included)
 

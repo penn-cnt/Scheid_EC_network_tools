@@ -10,7 +10,7 @@ load(sprintf('%s/%sNetworks.mat',datafold, Null));
 load(sprintf('%s/%sPartitions.mat', datafold, Null));
 load(sprintf('%s/%sMetric_matrices.mat', datafold, Null)); 
 load(sprintf('%s/%sState_metrics.mat', datafold, Null))
-load('%s/avgDist.mat');
+%load('%s/avgDist.mat');
 
 eval(['Networks=', Null, 'Networks'])
 eval(['Partitions=', Null, 'Partitions'])
@@ -104,7 +104,7 @@ all=false; % show both preictal and ictal
 metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl'}; 
 %metrics={'degree', 'aveCtrl', 'modalCtrl'}; 
 
-for i_set=1:nSets
+for i_set=i_preict %1:nSets
     i_set
     figure(3); clf; 
     p= Partitions(i_set);
@@ -113,7 +113,7 @@ for i_set=1:nSets
         continue
     end
     
-    st= p.states; mm= Metric_matrices(i_set);
+    st= p.contigStates; mm= Metric_matrices(i_set);
     
     if all
         st=[Partitions(i_set+39).states+3, st];
@@ -174,6 +174,7 @@ for i_set=1:nSets
     figure(4)
     %set(gca, 'Position', get(gca, 'Position')+[0,.05,0,0])
     imagesc(st) 
+    
     colormap(gca, cols(unique(st),:));
     set(gca, 'YTick', [], 'fontsize', 18)
 
@@ -248,14 +249,19 @@ end
 
 %% Is there a difference between states? (creates glob,c_i_preict_glob, i_ict_glob)
 
+i_ict=find(strcmp({Partitions.type},'ictal'));
+i_preict=find(strcmp({Partitions.type},'preictal'));
+
 ctype='bonferroni';
 display= 'off';
+groupOn= false;
 
 analysis=struct();
 diffs=struct();
 glob=struct(); c_i_preict_glob=struct(); c_i_ict_glob=struct();
 metrics={'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'}; %'optEnergySOZ'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
 
+lstID=State_metrics(1).ID; ctr=1; 
 for i_set=1:nSets
     
     s= State_metrics(i_set);
@@ -265,7 +271,7 @@ for i_set=1:nSets
     
     for i=1:length(metrics)
         
-        % Skip paatients without values for a specific metric
+        % Skip patients without values for a specific metric
         if isempty(s.(metrics{i}))
             eval(sprintf('glob.%s(i_set,:)=nan;', metrics{i})); 
             continue
@@ -282,16 +288,44 @@ for i_set=1:nSets
         eval(sprintf('[c_%s,m_%s]= multcompare(stats_%s, ''ctype'', ctype, ''display'', display);', ...
             metrics{i}, metrics{i}, metrics{i}));
         
-        % Save P value, difference, and global average
+        % Save P value, difference, and global network average
         eval(sprintf('analysis(i_set).%s=c_%s(:,6);',metrics{i}, metrics{i}));
         eval(sprintf('diffs%s(i_set,:)=c_%s(:,4);', metrics{i}, metrics{i}));
         % Save average of ZSCORED data
-        eval(sprintf('glob.%s(i_set,:)=mean(s.%sZ(:,1:3));', metrics{i}, metrics{i})); 
+        eval(sprintf('glob.%s(i_set,:)=mean(s.%sZ(:,1:3));', metrics{i}, metrics{i}));
         
     end
 end
 
+% Random removal of 5 seizures from study026
 display='off';
+rm=[31    36    33    35    29]
+i_ict(ismember(i_ict,rm))=[];
+i_preict(ismember(i_preict,rm+39))=[];
+subinds=[i_ict,i_preict];
+
+
+if groupOn
+    % Get global avg grouped by sz type
+    cls=strcat({dataSets_clean([i_ict, i_preict]).type}', {dataSets_clean([i_ict, i_preict]).ID}', ...
+        num2str([dataSets_clean([i_ict, i_preict]).sz_subtype]'));
+    [uns, bb]=unique(string(cls),'rows');
+
+    grp_glob=struct();
+    ctr=1;
+    for u=1:length(uns)
+        inds=strcmp(cls, uns(u,:));
+        for i=1:length(metrics)
+            eval(sprintf('grp_glob.%s(u,:)=mean(glob.%s(subinds(inds),1:3),1);', metrics{i}, metrics{i}))
+        end
+    end
+
+    n_gp=length(grp_glob.(metrics{1}))/2;
+    i_ict=[1:n_gp]; i_preict=[1:n_gp]+n_gp;
+end
+
+
+
 %metrics={'optEnergy'}
 % Get group level averages
 for i=1:length(metrics)
@@ -309,16 +343,30 @@ for i=1:length(metrics)
         continue 
         pause
     end
+        
+    if groupOn
+        % Group Independent
+        % ictal 
+        eval(sprintf('[~,table1,stats_g%s]=friedman(grp_glob.%s([1:n_gp],1:3),1,display);', metrics{i},  metrics{i}))
+        eval(['[c_i_ict_glob.',metrics{i},',m_ict_g',metrics{i},...
+            ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
+        disp(table1)
+        %preictal
+        eval(sprintf('[~,~,stats_g%s]=friedman(grp_glob.%s([1:n_gp]+n_gp,1:3),1,display);', metrics{i},  metrics{i}));
+        eval(['[c_i_preict_glob.',metrics{i},',m_ict_g',metrics{i},...
+            ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
+    else
+        % ictal 
+        eval(sprintf('[~,table1,stats_g%s]=friedman(glob.%s(i_ict,1:3),1,display);', metrics{i},  metrics{i}))
+        eval(['[c_i_ict_glob.',metrics{i},',m_ict_g',metrics{i},...
+            ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
+        disp(table1)
+        %preictal
+        eval(sprintf('[~,~,stats_g%s]=friedman(glob.%s(i_preict,1:3),1,display);', metrics{i},  metrics{i}));
+            eval(['[c_i_preict_glob.',metrics{i},',m_ict_g',metrics{i},...
+            ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
+    end
     
-    % ictal 
-    eval(sprintf('[~,table1,stats_g%s]=friedman(glob.%s(i_ict,1:3),1,display);', metrics{i},  metrics{i}))
-    eval(['[c_i_ict_glob.',metrics{i},',m_ict_g',metrics{i},...
-        ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
-    disp(table1)
-    %preictal
-    eval(sprintf('[~,~,stats_g%s]=friedman(glob.%s(i_preict,1:3),1,display);', metrics{i},  metrics{i}));
-    eval(['[c_i_preict_glob.',metrics{i},',m_ict_g',metrics{i},...
-        ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
     
 
 end
@@ -327,7 +375,7 @@ disp('done')
 %% Display results of Friedman's test individually
 
 ctr=1;
-alpha=.05; 
+alpha=.01; 
 
 metrics= {'aveCtrl', 'modalCtrl', 'strength'} % optEnergy'
 
@@ -388,15 +436,22 @@ disp('done')
 fig_ctr=6;
 alpha=0.05;
 
+
 metrics= {'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
+
 %metrics={'optEnergySOZ'}
 for type={'i_ict', 'i_preict'} %, 'i_null'
     figure(fig_ctr); clf;
     for i=1:length(metrics)
+        if groupOn
+            glb= grp_glob.(metrics{i});
+        else
+            glb= glob.(metrics{i});
+        end
         subplot(1,length(metrics),i);
         hold on
-        outs=sort(eval(['glob.',metrics{i}, '(isoutlier(glob.',metrics{i},'))']));
-        sorted=sort(eval(['glob.', metrics{i}, '(:)']));
+        outs= sort(glb(isoutlier(glb)));
+        sorted=sort(glb(:));
         
         % Set datalimits if outliers are > 2 std away
         maxLim=outs(find(zscore(outs)>2, 1, 'first')); 
@@ -407,7 +462,7 @@ for type={'i_ict', 'i_preict'} %, 'i_null'
         if isempty(maxLim); maxLim= Inf; 
         else; maxLim=sorted(find(sorted<maxLim, 1, 'last')); end
         
-        h=boxplot(eval(['glob.',metrics{i},'(', type{1},',:)']), ...
+        h=boxplot(eval(['glb(', type{1},',:)']), ...
             {'Phase 1', 'Phase 2', 'Phase 3'}, 'Colors', cols(1:3,:), ...
             'Symbol', 'x', ...
             'dataLim', [minLim, maxLim]);
@@ -418,26 +473,30 @@ for type={'i_ict', 'i_preict'} %, 'i_null'
         sigstar(num2cell(cs(cs(:,6)<=alpha,[1:2]),2));
         %ylim([min(eval(['glob.',metrics{i},'(:)']))*1.1, max(eval(['glob.',metrics{i},'(:)'])*1.2)])
     end
-    suptitle([type{1}(3:end), 'al'])
     fig_ctr= fig_ctr+2;
+    suptitle(sprintf('%sal, alpha: %0.2f grouped: %s', type{1}(3:end),alpha, string(groupOn)))
 end
 
 %% Fit a Linear Mixed model to metrics
 
 % Get table with (ID, Phase, Metric)
-metrics= {'aveCtrl', 'modalCtrl','optEnergy', 'strength'};
+metrics= {'aveCtrl'};
+%, 'modalCtrl', 'strength'};
 for m= metrics
     varnames= {m{1},'Phase', 'ID'};
     tbl=table([],[],[],'VariableNames', varnames); 
     for i=i_ict
-        tbl= [tbl; table(mean(State_metrics(i).(m{1})(:,1:3))', [1:3]', repmat(string(Metric_matrices(i).ID),3,1), ...
+        tbl= [tbl; table(mean(State_metrics(i).(m{1})(:,1:3))', [1:3]',...
+            repmat(string([Metric_matrices(i).ID+"_"+dataSets_clean(i).sz_subtype]),3,1), ...
             'VariableNames', varnames)];
     end
 
     tbl.Phase = categorical(tbl.Phase); 
     tbl.ID = categorical(tbl.ID);
     
-lme = fitlme(tbl, sprintf('%s ~ 1 + Phase + (1|ID)', m{1}))
+lme = fitlme(tbl, sprintf('%s ~ Phase + (1|ID)', m{1}))
+lme2 = fitlme(tbl, sprintf('%s ~ Phase + (1|ID) + (Phase-1|ID)', m{1}))
+lme3 = fitlme(tbl, sprintf('%s ~ Phase + (Phase|ID)', m{1}))
 
 end
 
@@ -871,6 +930,18 @@ figure(1); set(gcf,'Name', 'pcm')
 imagesc(Networks(1).pcm(:,:,6))
 colormap('winter'); colorbar
 xlabel('nodes'); ylabel('nodes');
+
+% Example similarity matrix
+A= [[rand(5,5)*.6, rand(5,5)];[rand(5,5), rand(5,5)*.4]]; A=A+A'; A=A.*~eye(10)+eye(10);
+imagesc(A)
+colormap(bone)
+axis off
+
+% Example ec matrix
+A= [[rand(10,10), rand(10,10)];[rand(10,10), rand(10,10)]]; A=A+A'; A=A.*~eye(20)+eye(20);
+imagesc(A)
+colormap(gray)
+axis off
 
 % methods metric
 figure(3); clf; set(gcf,'Name', 'methodsMetric')

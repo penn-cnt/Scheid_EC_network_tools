@@ -1,5 +1,5 @@
 %% Compute Metrics (similarity, avgCtrl, etc) (get metric_matrices.mat)
-
+addpath(genpath('supportFcns'))
 Null='' % set string to 'Null' if computing on null model, else set empty
 
 load(sprintf('Data/%sNetworks', Null))
@@ -107,14 +107,12 @@ for i_set=1:nSets
 
 
    end
-   
-   
     
     % Define function to compute state averages, compute averages from
     % longest run of each state type though. 
     st= Partitions(i_set).contigStates;
     stAvg= @(metric)cell2mat(arrayfun(@(x)mean(metric(:,st==x),2),...
-        [1:3], 'UniformOutput', false)); 
+        unique(st), 'UniformOutput', false)); 
     
     % Populate metric and state average structs
     for m=metrics
@@ -133,33 +131,3 @@ save(sprintf('Data/%sMetric_matrices.mat', Null), sprintf('%sMetric_matrices', N
 save(sprintf('Data/%sState_metrics.mat', Null), sprintf('%sState_metrics', Null))
 
 disp('done')
-
-
-%% Correction for states
-   metrics={'globalCtrl', 'aveCtrl', 'modalCtrl', 'pModalCtrl', 'tModalCtrl',...
-       'strength', 'strengthPos', 'strengthNeg', ...        % Network metrics %
-       'skewness', 'kurtosis', 'degree', 'clustering3'}; 
-
-State_metrics=struct();
-
-for i_set=1:nSets
-    st= Partitions(i_set).contigStates;
-    stAvg= @(metric)cell2mat(arrayfun(@(x)median(metric(:,st==x),2),...
-    [1:3], 'UniformOutput', false)); 
-
-    Net= Networks(i_set);
-    
-    % Initialize metric structs
-    State_metrics(i_set).ID=Net.ID;    
-    State_metrics(i_set).type=Net.type; 
-    State_metrics(i_set).block=Net.block;
-    
-    for m=metrics
-        met= Metric_matrices(i_set).(m{1});
-        State_metrics(i_set).(m{1})= stAvg(met);
-        State_metrics(i_set).([m{1},'Z'])= stAvg((met-mean(met(:)))/std(met(:))); 
-    end
-
-end
-    
-
