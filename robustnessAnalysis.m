@@ -14,6 +14,9 @@ npts=12;
 betaStr=replace(string(betas), '.', '_');
 gammaStr=replace(string(gammas), '.', '_');
 
+cols=[[227,187,187]; [190,8,4]; [138,4,4];[140,42,195];[75,184,166];[242,224,43];[74,156,85];...
+   [80,80,80]; [255,255,255]]/255;
+
 
 for g=1:length(gammas)
     for i_pt=1:length(Network)
@@ -27,7 +30,7 @@ for g=1:length(gammas)
     end
 end
 
-%%
+%% How does sparsity affect average controllability values?
 
 figure(3); clf; hold on
 plot(gammas, d(:,1:npts))
@@ -130,5 +133,74 @@ end
 
 figure(1); suptitle('preictal')
 figure(2); suptitle('ictal')
+
+
+%% Metric Comparison with different Betas
+
+load(sprintf('Data/Robustness/Partitions_0_5'))
+load(sprintf('Data/Robustness/State_metrics_0_5'))
+npts= length(unique({Partitions.ID}));
+metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'}; 
+
+figure(1); clf
+figure(2); clf
+
+alpha=0.05;
+ 
+ctr=1; 
+for b= 1:length(betas)
+    for m=1:length(metrics)
+        
+        i_ict= (1:npts)+(2*npts)*(b-1);
+        i_preict= i_ict+npts; 
+
+       ict_metZ= cell2mat(cellfun(@mean,...
+            {State_metrics(i_ict).([metrics{m},'Z'])}, 'UniformOutput', false)');
+       preict_metZ= cell2mat(cellfun(@mean,...
+            {State_metrics(i_preict).([metrics{m},'Z'])}, 'UniformOutput', false)');
+        
+       ict_met= cell2mat(cellfun(@mean,...
+            {State_metrics(i_ict).(metrics{m})}, 'UniformOutput', false)');
+       preict_met= cell2mat(cellfun(@mean,...
+            {State_metrics(i_preict).(metrics{m})}, 'UniformOutput', false)');
+
+        figure(1); hold on;
+        subplot(length(betas),length(metrics), ctr); hold on;    
+        h= boxplot(ict_metZ, {'Phase 1', 'Phase 2', 'Phase 3'},'Colors', cols(1:3,:));
+        set(h,{'linew'},{2})
+        if m==1; ylabel(sprintf('beta: %0.2f', betas(b))); end
+        if b==1; title(sprintf('%s', metrics{m})); end
+        
+        [~,~,cc]=friedman(ict_met,1, 'off'); [ee]=multcompare(cc, 'display', 'off');
+        sigstar(num2cell(ee(ee(:,6)<=alpha,[1:2]),2))
+        
+        figure(2); hold on;
+        subplot(length(betas),length(metrics), ctr); hold on;    
+        h= boxplot(preict_metZ, {'Phase 1', 'Phase 2', 'Phase 3'},'Colors', cols(1:3,:));
+        set(h,{'linew'},{2})
+        if m==1; ylabel(sprintf('beta: %0.2f', betas(b))); end
+        if b==1; title(sprintf('%s', metrics{m})); end
+        
+        [~,~,cc]=friedman(preict_met,1, 'off'); [ee]=multcompare(cc,'display', 'off');
+        sigstar(num2cell(ee(ee(:,6)<=alpha,[1:2]),2))
+        
+        ctr=ctr+1;
+
+    end
+end
+
+
+figure(1); suptitle('ictal')
+figure(2); suptitle('preictal')
+
+
+
+
+
+
+
+
+
+
 
 

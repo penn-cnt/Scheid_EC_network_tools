@@ -1,14 +1,5 @@
 %% Compute Metrics (similarity, avgCtrl, etc) (get metric_matrices.mat)
 
-Null='' % set string to 'Null' if computing on null model, else set empty
-
-load(sprintf('Data/%sNetworks', Null))
-load(sprintf('Data/%sPartitions', Null))
-% 
-% eval(['Networks=', Null, 'Networks;']);
-% eval(['Partitions=', Null, 'Partitions;']);
-
-nSets=length(Partitions);
 metric_matrices= struct(); 
 State_metrics=struct();
 
@@ -16,12 +7,14 @@ State_metrics=struct();
 thresh=0.15;     % Threshold for transient/persistent mode selection
 dt=1;        %
 
-for i_set=1:3; %:length(Partitions)
+for i_set=1:length(Partitions)
     fprintf('inds %d\n',i_set)
     clear skewness kurtosis % clear to avoid func. ambiguity
     
     p= Partitions(i_set);
-    Net=Network(mod([1,22:25]-1, nSets)+1); 
+    % match ID
+    netInd= strcmp(p.ID, {Network.ID}).*strcmp(p.type, {Network.type}); 
+    Net=Network(find(netInd)); 
     
     % Initialize metric structs
     metric_matrices(i_set).ID= p.ID; State_metrics(i_set).ID=p.ID;    
@@ -130,41 +123,40 @@ for i_set=1:3; %:length(Partitions)
 end
 
 
-eval([Null,'Metric_matrices= metric_matrices']);
-eval([Null,'State_metrics= state_metrics']);
-save(sprintf('Data/%sMetric_matrices.mat', Null), sprintf('%sMetric_matrices', Null))
-save(sprintf('Data/%sState_metrics.mat', Null), sprintf('%sState_metrics', Null))
+Metric_matrices= metric_matrices;
+% save(sprintf('Data/%sMetric_matrices.mat', Null), sprintf('%sMetric_matrices', Null))
+% save(sprintf('Data/%sState_metrics.mat', Null), sprintf('%sState_metrics', Null))
 
 disp('done')
 
 
-%% Correction for states
-   metrics={'globalCtrl', 'aveCtrl', 'modalCtrl', 'pModalCtrl', 'tModalCtrl',...
-       'strength', 'strengthPos', 'strengthNeg', ...        % Network metrics %
-       'skewness', 'kurtosis', 'degree', 'clustering3'}; 
-
-State_metrics=struct();
-
-for i_set=1:nSets
-    st= Partitions(i_set).contigStates;
-    stAvg= @(metric)cell2mat(arrayfun(@(x)median(metric(:,st==x),2),...
-    [1:3], 'UniformOutput', false)); 
-
-    Net= Networks(i_set);
-    
-    % Initialize metric structs
-    State_metrics(i_set).ID=Net.ID;    
-    State_metrics(i_set).type=Net.type; 
-    State_metrics(i_set).block=Net.block;
-    
-    for m=metrics
-        met= Metric_matrices(i_set).(m{1});
-        State_metrics(i_set).(m{1})= stAvg(met);
-        State_metrics(i_set).([m{1},'Z'])= stAvg((met-mean(met(:)))/std(met(:))); 
-    end
-
-end
-
-disp('Done')
-    
+% %% Correction for states
+%    metrics={'globalCtrl', 'aveCtrl', 'modalCtrl', 'pModalCtrl', 'tModalCtrl',...
+%        'strength', 'strengthPos', 'strengthNeg', ...        % Network metrics %
+%        'skewness', 'kurtosis', 'degree', 'clustering3'}; 
+% 
+% State_metrics=struct();
+% 
+% for i_set=1:nSets
+%     st= Partitions(i_set).contigStates;
+%     stAvg= @(metric)cell2mat(arrayfun(@(x)median(metric(:,st==x),2),...
+%     [1:3], 'UniformOutput', false)); 
+% 
+%     Net= Networks(i_set);
+%     
+%     % Initialize metric structs
+%     State_metrics(i_set).ID=Net.ID;    
+%     State_metrics(i_set).type=Net.type; 
+%     State_metrics(i_set).block=Net.block;
+%     
+%     for m=metrics
+%         met= Metric_matrices(i_set).(m{1});
+%         State_metrics(i_set).(m{1})= stAvg(met);
+%         State_metrics(i_set).([m{1},'Z'])= stAvg((met-mean(met(:)))/std(met(:))); 
+%     end
+% 
+% end
+% 
+% disp('Done')
+%     
 

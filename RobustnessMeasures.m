@@ -204,7 +204,7 @@ for g=4 %1:length(gammas)
     run get_metrics.m
 
     save(sprintf('Data/Robustness/Metric_matrices_%s.mat',gammaStr{g}), 'Metric_matrices')
-    save(sprintf('Data/Robustness/Setric_matrices_%s.mat',gammaStr{g}), 'State_matrices')
+    save(sprintf('Data/Robustness/State_metrics_%s.mat',gammaStr{g}), 'State_metrics')
 
 end
 
