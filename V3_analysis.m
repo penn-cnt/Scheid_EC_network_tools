@@ -434,7 +434,7 @@ disp('done')
 % Boxplot visualization of group level trends using Friedman's test. 
 
 fig_ctr=6;
-alpha=0.05;
+alpha=0.01;
 
 
 metrics= {'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};

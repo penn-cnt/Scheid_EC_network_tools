@@ -17,7 +17,7 @@ for ff= figs'
         formatFigure(ff,doubCol,3)
     end
     
-    saveas(ff, sprintf('Figs/%s.png', ff.Name))
+    %saveas(ff, sprintf('Figs/%s.png', ff.Name))
 end
 
 
