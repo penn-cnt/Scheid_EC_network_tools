@@ -89,7 +89,9 @@ stateTable=table([mn_len', std_len'], [mn_med', std_med'], [mn_lenpi', std_lenpi
     'RowNames', {'st1', 'st2', 'st3'})
 sum(table2array(stateTable(:,:)))
 
-writetable(stateTable,'Data/stateTable.csv')
+tst_id=table({datestr(now())}, "StateStats", 'VariableNames', {'Date', 'test'});
+writetable(tst_id, 'Data/resultsTable.xlsx', 'Range', 'A1:B2');
+writetable(stateTable,'Data/resultsTable.xlsx', 'Range', 'A3:H6')
 
 clear mn_len mn_med mn_lenpi mn_medpi labels x_ict y_ict x_preict y_preict meds_preict lens_preict ...
     meds_ict lens_ict
@@ -101,7 +103,7 @@ clear mn_len mn_med mn_lenpi mn_medpi labels x_ict y_ict x_preict y_preict meds_
 % Select metrics to plot
 n=2; m=4;
 all=false; % show both preictal and ictal
-metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl'}; 
+metrics={'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl'}; 
 %metrics={'degree', 'aveCtrl', 'modalCtrl'}; 
 
 for i_set=i_preict %1:nSets
@@ -253,8 +255,8 @@ i_ict=find(strcmp({Partitions.type},'ictal'));
 i_preict=find(strcmp({Partitions.type},'preictal'));
 
 ctype='bonferroni';
-display= 'off';
-groupOn= false;
+%display= 'off';
+groupOn= true;
 
 analysis=struct();
 diffs=struct();
@@ -299,7 +301,7 @@ end
 
 % Random removal of 5 seizures from study026
 display='off';
-rm=[31    36    33    35    29]
+rm=[31    36    33    35    29];
 i_ict(ismember(i_ict,rm))=[];
 i_preict(ismember(i_preict,rm+39))=[];
 subinds=[i_ict,i_preict];
@@ -324,7 +326,9 @@ if groupOn
     i_ict=[1:n_gp]; i_preict=[1:n_gp]+n_gp;
 end
 
-
+stats_ict=zeros(length(metrics),4);
+stats_preict=zeros(length(metrics),4);
+xl_ptr=1; if groupOn; xl_ptr= 21; end
 
 %metrics={'optEnergy'}
 % Get group level averages
@@ -335,7 +339,6 @@ for i=1:length(metrics)
         eval(sprintf('[~,table1,stats_g%s]=friedman(glob.%s(i_soz,1:3),1,display);', metrics{i},  metrics{i}))
         eval(['[c_i_ict_glob.',metrics{i},',m_ict_g',metrics{i},...
             ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
-        disp(table1)
         %preictal
         eval(sprintf('[~,~,stats_g%s]=friedman(glob.%s(i_soz+39,1:3),1,display);', metrics{i},  metrics{i}));
         eval(['[c_i_preict_glob.',metrics{i},',m_ict_g',metrics{i},...
@@ -347,37 +350,65 @@ for i=1:length(metrics)
     if groupOn
         % Group Independent
         % ictal 
-        eval(sprintf('[~,table1,stats_g%s]=friedman(grp_glob.%s([1:n_gp],1:3),1,display);', metrics{i},  metrics{i}))
+        [~,tbl_ict,stats_gict]=friedman(grp_glob.(metrics{i})([1:n_gp],1:3),1,display);
         eval(['[c_i_ict_glob.',metrics{i},',m_ict_g',metrics{i},...
-            ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
-        disp(table1)
+            ']= multcompare(stats_gict,''ctype'', ctype, ''display'', display);'])
         %preictal
-        eval(sprintf('[~,~,stats_g%s]=friedman(grp_glob.%s([1:n_gp]+n_gp,1:3),1,display);', metrics{i},  metrics{i}));
+        [~,tbl_preict,stats_gpreict]=friedman(grp_glob.(metrics{i})([1:n_gp]+n_gp,1:3),1,display);
         eval(['[c_i_preict_glob.',metrics{i},',m_ict_g',metrics{i},...
-            ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
+            ']= multcompare(stats_gpreict,''ctype'', ctype, ''display'', display);'])
     else
         % ictal 
-        eval(sprintf('[~,table1,stats_g%s]=friedman(glob.%s(i_ict,1:3),1,display);', metrics{i},  metrics{i}))
+        [~,tbl_ict,stats_gict]=friedman(glob.(metrics{i})(i_ict,1:3),1,display);
         eval(['[c_i_ict_glob.',metrics{i},',m_ict_g',metrics{i},...
-            ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
-        disp(table1)
+            ']= multcompare(stats_gict,''ctype'', ctype, ''display'', display);'])
         %preictal
-        eval(sprintf('[~,~,stats_g%s]=friedman(glob.%s(i_preict,1:3),1,display);', metrics{i},  metrics{i}));
+        [~,tbl_preict,stats_gpreict]=friedman(glob.(metrics{i})(i_preict,1:3),1,display);
             eval(['[c_i_preict_glob.',metrics{i},',m_ict_g',metrics{i},...
-            ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
+            ']= multcompare(stats_gpreict,''ctype'', ctype, ''display'', display);'])
     end
     
+    % Write results to table
+    writecell({['ictal ', metrics{i}, ' groupOn: ', string(groupOn)]},...
+        'Data/resultsTable.xlsx', 'Sheet', 'Grp Metrics', 'Range', sprintf('L%d', xl_ptr));
+    writecell({['preictal ', metrics{i},' groupOn: ', string(groupOn)]},...
+        'Data/resultsTable.xlsx', 'Sheet', 'Grp Metrics', 'Range', sprintf('R%d', xl_ptr)); xl_ptr=xl_ptr+1; 
+    writematrix(c_i_ict_glob.(metrics{i}),'Data/resultsTable.xlsx','Sheet','Grp Metrics','Range', sprintf('L%d:Q%d', xl_ptr, xl_ptr+3));   
+    writematrix(c_i_preict_glob.(metrics{i}),'Data/resultsTable.xlsx','Sheet','Grp Metrics','Range', sprintf('R%d:W%d', xl_ptr, xl_ptr+3)); 
+    xl_ptr=xl_ptr+4; 
     
+    stats_ict(i,:)= [tbl_ict{2,3},tbl_ict{2,5},stats_gict.n, tbl_ict{2,6}];
+    stats_preict(i,:)= [tbl_preict{2,3},tbl_preict{2,5},stats_gpreict.n, tbl_preict{2,6}];
 
 end
+ 
+% Show table and write to results document
+
+statTbl_ict= array2table(stats_ict, 'VariableNames', {'df','chi2', 'n', 'pval'})
+statTbl_preict= array2table(stats_preict, 'VariableNames', {'df','chi2', 'n', 'pval'})
+
+if groupOn
+    writecell({datestr(now()), 'GroupLevel_metrics-grouped by subject'}, 'Data/resultsTable.xlsx', 'Sheet', 'Grp Metrics', 'Range', 'F1:G2');
+    writetable([table(metrics', 'VariableNames', {'Ictal_Metrics'}),statTbl_ict],'Data/resultsTable.xlsx', ...
+        'Sheet', 'Grp Metrics', 'Range', sprintf('F3:L%d',height(statTbl_ict)+10))
+    writetable([table(metrics', 'VariableNames', {'Preictal_Metrics'}), statTbl_preict],'Data/resultsTable.xlsx', ...
+        'Sheet', 'Grp Metrics', 'Range', sprintf('F%d:L%d',height(statTbl_ict)+4,4+2*height(statTbl_ict)))
+else
+    writecell({datestr(now()), 'GroupLevel_metrics- sz indep.'}, 'Data/resultsTable.xlsx', 'Sheet', 'Grp Metrics', 'Range', 'A1:B2');
+    writetable([table(metrics', 'VariableNames', {'Ictal_Metrics'}), statTbl_ict],'Data/resultsTable.xlsx', ...
+        'Sheet', 'Grp Metrics', 'Range', sprintf('A3:E%d',height(statTbl_ict)+10))
+    writetable([table(metrics', 'VariableNames', {'Preictal_Metrics'}), statTbl_preict],'Data/resultsTable.xlsx', ...
+        'Sheet', 'Grp Metrics', 'Range', sprintf('A%d:E%d',height(statTbl_ict)+4,4+2*height(statTbl_ict)))
+end
+
     
 disp('done')
 %% Display results of Friedman's test individually
 
 ctr=1;
-alpha=.01; 
+alpha=.7; 
 
-metrics= {'aveCtrl', 'modalCtrl', 'strength'} % optEnergy'
+metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'}; % optEnergy'
 
 
 for type=[i_ict', i_preict']
@@ -428,16 +459,16 @@ for type=[i_ict', i_preict']
     ctr= ctr+1
 end
 disp('done')
-%% Group Level Trends Ictal preictal, and null model
+%% Group Level Trends Ictal preictal
 
 % 
 % Boxplot visualization of group level trends using Friedman's test. 
 
 fig_ctr=6;
-alpha=0.01;
+alpha=0.05;
 
 
-metrics= {'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
+metrics= {'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
 
 %metrics={'optEnergySOZ'}
 for type={'i_ict', 'i_preict'} %, 'i_null'
@@ -953,6 +984,36 @@ subplot(10,1,10)
 imagesc(Partitions(27).states) 
 colormap(gca, cols(1:3,:));
 xticklabels(''); yticklabels('');
+
+% Slow/fast mode impulse response
+x=linspace(0,1); 
+rgb_array =...
+[[0.2235    0.6118    0.6275];
+    [0.8235    0.9765    0.9843];...
+    [0.4588    0.8196    0.8353];...
+    [0.0863    0.4863    0.5059];...
+    [0.0196    0.1961    0.2039];...
+    [0.2941    0.4078    0.6902];...
+    [0.8431    0.8824    0.9882];...
+    [0.5137    0.6157    0.8627];...
+    [0.1412    0.2627    0.5608];...
+    [0.0392    0.0941    0.2235];...
+    [0.2824    0.8000    0.3176];...
+    [0.8275    0.9922    0.8392];...
+    [0.4980    0.9098    0.5255];...
+    [0.1059    0.6549    0.1412];...
+    [0.0235    0.2627    0.0392];...
+];
+
+figure(39)
+clf; hold on
+plot(exp(-9*x),'color', rgb_array(9,:))
+plot(exp(-6*x),'color', rgb_array(8,:))
+plot(exp(-2*x),'color', rgb_array(7,:))
+plot(exp(-1.2*x),'color', rgb_array(3,:))
+plot(exp(-1*x),'color', rgb_array(4,:))
+colormap(rgb_array([9,6,8,7,2,3,1,4,5]',:))
+
 
 
 
