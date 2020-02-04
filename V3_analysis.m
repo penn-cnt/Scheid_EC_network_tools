@@ -24,8 +24,6 @@ eval(['State_metrics=', Null, 'State_metrics'])
 
 addpath(genpath('~/Documents/CODE/'))
 
-% cols=[[75,184,166];[255,168,231]; [36,67,152];[140,42,195];[121,29,38];[242,224,43];[74,156,85];...
-%    [80,80,80]; [255,255,255]]/255;
 cols=[[227,187,187]; [190,8,4]; [138,4,4];[140,42,195];[75,184,166];[242,224,43];[74,156,85];...
    [80,80,80]; [255,255,255]]/255;
 
@@ -66,6 +64,7 @@ title('preictal')
 set(gca,'xaxisLocation','bottom', 'yaxislocation', 'left','fontsize', 18)
 
 %% Show table of mean and std statistics for ictal and preictal states
+
 mn_len=mean(lens_ict); std_len=std(lens_ict);
 mn_med=mean(meds_ict);std_med=std(meds_ict);
 mn_lenpi=mean(lens_preict);std_lenpi=std(lens_preict);
@@ -97,158 +96,6 @@ clear mn_len mn_med mn_lenpi mn_medpi labels x_ict y_ict x_preict y_preict meds_
     meds_ict lens_ict
 
 
-
-            %% Metric Trends (individual) %%
-
-% Select metrics to plot
-n=2; m=4;
-all=false; % show both preictal and ictal
-metrics={'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl'}; 
-%metrics={'degree', 'aveCtrl', 'modalCtrl'}; 
-
-for i_set=i_preict %1:nSets
-    i_set
-    figure(3); clf; 
-    p= Partitions(i_set);
-    
-    if isempty(p.states)
-        continue
-    end
-    
-    st= p.contigStates; mm= Metric_matrices(i_set);
-    
-    if all
-        st=[Partitions(i_set+39).states+3, st];
-        mm_pre= Metric_matrices(i_set+39); 
-    end
-    
-    [N, T]=size(mm.degree);
-    suptitle(sprintf('Network Metrics for %s, %s %d', p.ID, p.type, p.block))
- 
-    % Display Metrics
-    for i=1:length(metrics)
-        if all
-            met=[mm_pre.(metrics{i}), mm.(metrics{i})];
-        else 
-            met= mm.(metrics{i});
-        end
-        
-        subplot(n,m,i); hold on
-        imagesc(met);
-        stem((diff(st)~=0)*N,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
-        yyaxis right
-        plot(mean(met), 'color', 'cyan');
-        title(metrics{i}); axis tight
-    end
-
-    % Display signal
-    subplot(n,m,(n*m)-2); hold on
-    Fs=round( dataSets_clean(i_set).Fs);
-    if strcmp(dataSets_clean(i_set).type, 'ictal')
-        stDiff=round(dataSets_clean(i_set).UEOStart-dataSets_clean(i_set).EECStart);
-        data= dataSets_clean(i_set).data(:,1+Fs*stDiff:end)';
-    else
-        stDiff=round(dataSets_clean(i_set-39).UEOStart-dataSets_clean(i_set-39).EECStart);
-        data= [dataSets_clean(i_set).data(:,1+2*(Fs*stDiff):end), dataSets_clean(i_set-39).data(:,1:Fs*stDiff)]';
-    end
-    sozGrid=find(dataSets_clean(i_set).sozGrid);
-    plot((0:length(data)-1)/Fs,data+(1:1000:1000*(N)));
-    if ~isempty(sozGrid)
-        plot((0:length(data)-1)/Fs,data(:, sozGrid)+1000*(sozGrid-1)', 'c');
-    end
-    stem([(diff(st)~=0)]*1000*N,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
-    title('Signal'); axis tight
-
-    % Config matrix
-    subplot(n,m,(n*m)-1); hold on
-    imagesc(Networks(i_set).config_pcm)
-    set(gca,'colorscale','log')
-    stem((diff(st)~=0)*(N*(N-2))/2,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
-    title('regular. PCM'); axis tight
-    
-    % Similarity Matrix
-    subplot(n,m,(n*m)); hold on
-    imagesc(Networks(i_set).(wSim))
-    set(gca,'colorscale','log')
-    stem((diff(st)~=0)*T,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
-    title('Sim'); axis tight 
-
-    figure(4)
-    %set(gca, 'Position', get(gca, 'Position')+[0,.05,0,0])
-    imagesc(st) 
-    
-    colormap(gca, cols(unique(st),:));
-    set(gca, 'YTick', [], 'fontsize', 18)
-
-    pause
-end
-
-%% Show SOZ in data
-for i_set=1:nSets %i_ict
-    i_set
-    st= Partitions(i_set).states;
-        Fs=round(dataSets_clean(i_set).Fs);
-        d=dataSets_clean(i_set);
-    if strcmp(dataSets_clean(i_set).type, 'ictal')
-        stDiff=round(dataSets_clean(i_set).UEOStart-dataSets_clean(i_set).EECStart);
-        data= dataSets_clean(i_set).data(:,1+Fs*stDiff:end)';
-    else
-        stDiff=round(dataSets_clean(i_set-39).UEOStart-dataSets_clean(i_set-39).EECStart);
-        data= [dataSets_clean(i_set).data(:,1+2*(Fs*stDiff):end), dataSets_clean(i_set-39).data(:,1:Fs*stDiff)]';
-    end
-    N=size(data,2);
-    figure(9); clf; hold on
-    sozGrid=find(dataSets_clean(i_set).sozGrid);
-    plot((0:length(data)-1)/Fs,data+(1:1000:1000*(N)));
-    if ~isempty(sozGrid)
-        sum(sozGrid)
-        plot((0:length(data)-1)/Fs,data(:, sozGrid)+1000*(sozGrid-1)', 'c');
-    end
-    stem([(diff(st)~=0)]*1000*N,'Marker', 'none', 'lineWidth', 2, 'color', 'red')
-    title(sprintf('HUP %s, %d', d.ID, d.block)); axis tight
-    
-    figure(10); 
-    imagesc(Partitions(i_set).contigStates); axis off
-    pause
-    
-    
-end
-
-%% Display Kurtosis
-for i_set=i_ict
-    figure(1)
-    clf;
-    p= Partitions(i_set);
-    st= p.states; mm= Metric_matrices(i_set);
-    hold on
-    plot(mm.kurtosis)
-    stem((diff(st)~=0)*max(mm.kurtosis),'Marker', 'none', 'lineWidth', 2, 'color', 'red')
-    ylim([0,20])
-   
-     figure(2)
-    %set(gca, 'Position', get(gca, 'Position')+[0,.05,0,0])
-    imagesc(st) 
-    colormap(gca, cols(1:3,:));
-    set(gca, 'YTick', [], 'fontsize', 18)
-    
-        figure(3)
-    clf;
-    p= Partitions(i_set+39);
-    st= p.states; mm= Metric_matrices(i_set+39);
-    hold on
-    plot(mm.kurtosis)
-    stem((diff(st)~=0)*max(mm.kurtosis),'Marker', 'none', 'lineWidth', .5, 'color', 'red')
-    ylim([0,20])
-   
-     figure(5)
-    %set(gca, 'Position', get(gca, 'Position')+[0,.05,0,0])
-    imagesc(st) 
-    colormap(gca, cols(1:3,:));
-    set(gca, 'YTick', [], 'fontsize', 18)
-    
-    pause
-end
-
 %% Is there a difference between states? (creates glob,c_i_preict_glob, i_ict_glob)
 
 i_ict=find(strcmp({Partitions.type},'ictal'));
@@ -256,12 +103,12 @@ i_preict=find(strcmp({Partitions.type},'preictal'));
 
 ctype='bonferroni';
 %display= 'off';
-groupOn= true;
+groupOn= false;
 
 analysis=struct();
 diffs=struct();
 glob=struct(); c_i_preict_glob=struct(); c_i_ict_glob=struct();
-metrics={'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'}; %'optEnergySOZ'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
+metrics={'optEnergy'}%'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'}; %'optEnergySOZ'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
 
 lstID=State_metrics(1).ID; ctr=1; 
 for i_set=1:nSets
@@ -299,7 +146,7 @@ for i_set=1:nSets
     end
 end
 
-% Random removal of 5 seizures from study026
+% Random removal of 5 seizures from study026 to balance data set. 
 display='off';
 rm=[31    36    33    35    29];
 i_ict(ismember(i_ict,rm))=[];
@@ -468,7 +315,7 @@ fig_ctr=6;
 alpha=0.05;
 
 
-metrics= {'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
+metrics= {'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
 
 %metrics={'optEnergySOZ'}
 for type={'i_ict', 'i_preict'} %, 'i_null'
@@ -649,57 +496,6 @@ end
 
 
 
-%% Community Curves %%
-
-for i_set=1:nSets
-    
-    p=Partitions(i_set);
-
-if strcmp(p.type, 'preictal')==1
-    color=cols(1,:);
-else
-    color= cols(2,:);
-end
-
-figure(1); clf; hold on
-plot(p.gamma, p.quantileQ(:,3), 'color', color)
-scatter(p.gamma(p.modInfInd), p.quantileQ(p.modInfInd,3))
-
-
-title({'Louvain maximized modularity and inflection point',sprintf( '%s, %s phase #%s', p.ID, p.type, p.block)})
-xlabel('gamma (\gamma)')
-ylabel('modularity (Q)')
-
-figure(2); clf; hold on
-plot(p.gamma, p.quantileCommNum(:,3), 'color', color)
-infInd1= p.modInfInd; %find(p.quantileCommNum(:,3)>=3,1,'first');
-scatter(p.gamma(infInd1), p.quantileCommNum(infInd1,3),...
-    80, cols(1), 'HandleVisibility','off')
-text(p.gamma(infInd1)-1e-2, p.quantileCommNum(infInd1,3),...
-    sprintf('%d', p.quantileCommNum(infInd1,3)))
-
-try
-infInd2=p.modInfInd; %find(p.quantileCommNum(:,3)>=4,1,'first');
-scatter(p.gamma(infInd2), p.quantileCommNum(infInd2,4),...
-    80, cols(1), 'HandleVisibility','off', 'color', 'red')
-text(p.gamma(infInd2)-1e-2, p.quantileCommNum(infInd2,4),...
-    sprintf('%d', p.quantileCommNum(infInd2,4)))
-catch ME
-    disp(ME)
-end
-
-title({'NumComs',sprintf( '%s, %s phase #%s', p.ID, p.type, p.block)})
-xlabel('gamma (\gamma)')
-ylabel('numComms')
-
-%saveas(gcf,sprintf('Figures/Mods/%s_%s.png',p.ID ,p.block))
-
-i_set
-ncomms=unique(p.quantileCommNum(infInd2,3))
-pause
-
-end
-
 %% Connection Density, distance correlation
 
 [Density, RPosNeg_icov, RPosNeg_pcm, ...
@@ -747,7 +543,6 @@ NetworkTable=table({Networks.ID}', {Networks.type}', {Networks.block}', Density,
     'RposNeg_pcm', 'corricov', 'corrpcm'});
 writetable(NetworkTable,'Data/networkTable.csv')
 
-%%
 figure(5)
 subplot(121)
 histogram(Density(1:39,1),10)

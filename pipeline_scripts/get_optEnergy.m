@@ -1,18 +1,28 @@
 % Get Energy
-load('Data/dataSets_clean')
-load('Data/WPartitionsUEO')
-load('Data/Networks')
-load('Data/State_Metrics')
+datafold='Data';
+
+load([datafold,'/dataSets_clean.mat'])
+load([datafold,'/Partitions.mat'])
+load([datafold,'/Networks.mat'])
+load([datafold,'/State_Metrics.mat'])
 
 i_ict=find(strcmp({dataSets_clean.type},'ictal'));
 nSets=size(Networks,2);
+rm=[31    36    33    35    29];
 
-cols=[[75,184,166];[255,168,231]; [36,67,152];[140,42,195];[121,29,38];[242,224,43];[74,156,85];...
+cols=[[227,187,187]; [190,8,4]; [138,4,4];[140,42,195];[75,184,166];[242,224,43];[74,156,85];...
    [80,80,80]; [255,255,255]]/255;
 
 %% Part 1: Prepare Energy struct with initial and final values
 
-Energy=struct();
+% For each patient, this section computes an x0 initial state for the three seizure
+% phases as the average signal bandpower in "freq_band" over all windows in
+% each phase, resulting in an N x 1 initial state vector. 
+% xf is calculated as the average band power across all preictal windows.
+
+% x0_z and xf_z are calculated by taking the zscore of all x0s and xf. 
+
+%Energy=struct();
 %load('Data/Energy.mat')
 
 %Frequency Bands
@@ -21,16 +31,15 @@ beta=[15,25];
 low_g=[30,40];
 high_g=[95,105];
 
-freq=high_g;
+freq_band= high_g;
+i_ict=find(strcmp({dataSets_clean.type},'ictal'));
 
-%line length function
-llfun=@(x)sum(abs(diff(x,[],2)),2);
 
 info=['x0: mean bandpower across all windows in phase',...
       'xf: preict. bandpower', ...
       'B: single node, 1e-5 along diag'];
 
-for i_set= i_ict
+for i_set= i_ict % Note, should only iterate over ictal sets. 
     Net= Networks(i_set);
     p=Partitions(i_set);
     i_set
@@ -45,7 +54,7 @@ for i_set= i_ict
     Fs=round(d.Fs);
     
     %Set up bandpower function
-    bandfun=@(x)bandpower(x', Fs, high_g)';
+    bandfun=@(x)bandpower(x', Fs, freq_band)';
     
     %Get preictal bandpower for state xf.
     pi_d=dataSets_clean(i_set+nSets/2);
@@ -67,13 +76,10 @@ for i_set= i_ict
         Energy(i_set).repMats(:,:,s)= A_s(:,:,m_ind);
         
         %Get ECoG signal in longest contig. run of state
-        st_inds=p.stateRuns(1,:)==s;
-        [m_run, i_max]=max(p.stateRuns(2,st_inds));
-        t2= sum(p.stateRuns(2,1:find(cumsum(st_inds)==i_max,1,'first')));
-        t1= t2-p.stateRuns(2,find(cumsum(st_inds)==i_max,1,'first'))+1;
-
+        t1= find(p.contigStates==s, 1, 'first');
+        t2= find(p.contigStates==s, 1, 'last');
         signal=data(1:end,(Fs*(t1-1)+1:Fs*t2));
-        
+            
         %Uncomment to visualize and double check
 %         figure(1); clf
 %         subplot(121); hold on
@@ -88,6 +94,7 @@ for i_set= i_ict
 %         imagesc(p.states) 
 %         colormap(gca, cols([5,2,6],:));
 %         set(gca, 'YTick', [], 'fontsize', 18)
+   
         
 %       Compute average bandpower/1 sec window of state
         x0_t=MovingWinFeats(signal,Fs, 1, 1, bandfun);
@@ -107,20 +114,33 @@ for i_set= i_ict
 %             pause(.1)
 %         end
 %         
-    end 
+    end
+    
+    % Calculate z-scored x0 and xf
+    EZ= zscore([Energy(i_set).x0, Energy(i_set).xf], [],'all');
+    Energy(i_set).x0_z=EZ(:,1:3); Energy(i_set).xf_z=EZ(:,4); 
     
 end
 disp('done')
 
 %% Part 2: Find ideal trajectory u* and optimal energy
-load('Data/Energy.mat')
+
+% Calculate control energy to drive state x0 to xf from each individual node
+% with underlying connectivity as a represetative phase connectivity network A_s. 
+% A_S gets stabilized as a continuous system
+
+%load('Data/Energy.mat')
+
+i_ict=find(strcmp({dataSets_clean.type},'ictal'));
+relax= 1e-5; % value along non-driven diagonals of "relaxed" B matrix
 
 % Energy Parameters to Test
-%power(10, linspace(-3, 2, 10)); 
-t_traj= linspace(0.006, 0.15, 10); %power(10, linspace(-3, log10(5), 10)) %log10 distribution b/w 1-10
-rho= power(10, linspace(-3, 2, 10)); % log10 distribution b/w 1-30
+% On first pass, run with large parameter set to find best parameters
+t_traj= power(10, linspace(-2, log10(6), 10)); %log10 distribution b/w 1-5 %linspace(0.006, 0.15, 10);
+rho= [power(10, linspace(-2, 2, 10)), 110, 150]; % log10 distribution b/w 1-30
 
 for i_set=i_ict
+    tic
     i_set
     Energy(i_set).t_traj=t_traj;
     Energy(i_set).rho=rho;
@@ -128,107 +148,116 @@ for i_set=i_ict
     
     for s=1:3  % iterate through states
     
-    A_s= Energy(i_set).repMats(:,:,s);
     x0= Energy(i_set).x0(:,s);
+    N=length(x0);
+    A= Energy(i_set).repMats(:,:,s);  
+    A_s= A./(1+svds(A,1))-eye(N);       % normalize representative matrix
     
     [nodeEnergy, trajErr]= deal(zeros(length(x0),...
         length(t_traj), length(rho)));
     compTime=zeros(length(t_traj), 1);
     
-    for i_traj= 1:length(t_traj)
-        tic
-        T= t_traj(i_traj); 
+    for i_traj= 1:length(t_traj) % try different time horizons
         
-        for i_rho=1:length(rho)
-            r= rho(i_rho); 
-             %Calculate energy per node
+        T= t_traj(i_traj);
+        for i_rho=1:length(rho) % try different energy/distance tradeoffs
+            r= rho(i_rho);
             try
-                for n=1:length(x0)
-                    %%
-                    r=.5
-                    B=10^-5*ones(length(x0),1); B([1:3])=1; B=diag(B); 
+                for n=1:length(x0) %Calculate energy per node
                     
-                    
-                    T=.8;
-                    N=length(x0);
-                   % B=eye(length(x0)); B(5,5)=0; B(2,2)=0;
-                   % %1e-5*ones(length(x0),1); B(1)=1; AA=abs(A_s)+eye(size(A_s))
-                    [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, log(x0), log(xf), r, eye(length(A_s)));
-                    figure(1); imagesc(U_opt'); title('U'); 
-                    figure(2); imagesc(B); title('B');
-                    figure(3);
-                    %subplot(1,6,[2:5]); imagesc([X_opt(:,1:N)'])% imagesc(X_opt(:,2:N)'); title('X');
-                    subplot(1,6,[2:5]); imagesc([X_opt(1,1:N)',X_opt(end,1:N)'])
-                    cl=caxis;
-                    subplot(1,6,1); imagesc(log(x0)); title('x0'); caxis(cl)
-                    subplot(1,6,6); imagesc(log(xf)); title('xf');  caxis(cl)
-                    
-                    %%
-                    
-                    
+                    B=relax*ones(length(x0),1); B(n)=1; B=diag(B); 
+                    [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
                     nodeEnergy(n,i_traj,i_rho)=sum(vecnorm(B*U_opt').^2);
                     trajErr(n, i_traj,i_rho)=n_err;
                     
-%         energy{i_set}.X_opt{s}=X_opt(:,end/2:end)';
-%         energy{i_set}.U_opt{s}=U_opt';
-%         energy{i_set}.err{s}=n_err';
-%         energy{i_set}.xf=xf;
-%         energy{i_set}.totalEnergy(s)=sum(vecnorm(B*energy{i_set}.U_opt{s}).^2);
-        
-%          %Calculate energy per node
-%         for n=1:length(x0)
-%             if mod(n,20)==0
-%                 fprintf('%d/%d \n', n, length(x0));
-%             end
-%             B=10e-5*ones(length(x0),length(x0)); B(n,n)=1;
-%             [X_opt, U_opt, n_err] = optim_fun(A_s, t_traj, B, x0, xf, rho, eye(length(A_s)));
-%             energy{i_set}.nodeEnergy(n,s)=sum(vecnorm(B*U_opt').^2);
-%         end
-%         
-%         subplot(2,2,1+s)
-%         imagesc(x0);
-%         if s==1
-%             subplot(2,2,1)
-%             caxis([minn, maxx])
-%             minn=min(x0);
-%             maxx=max(x0);
-%         end
-%         caxis([minn, maxx]) 
-                    
-                    
+                    % Uncoment to view output
+%                     figure(1); imagesc(U_opt'); title('U'); 
+%                     figure(2); imagesc(B); title('B');
+%                     figure(3);
+%                     subplot(1,6,[2:5]); imagesc([X_opt(:,1:N)'])% imagesc(X_opt(:,2:N)'); title('X');
+%                     subplot(1,6,[2:5]); imagesc([X_opt(1,1:N)',X_opt(end,1:N)'])
+%                     cl=caxis;
+%                     subplot(1,6,1); imagesc(log(x0)); title('x0'); caxis(cl)
+%                     subplot(1,6,6); imagesc(log(xf)); title('xf');  caxis(cl)
+
                 end
                 
             catch ME
                 if strcmp(ME.identifier, 'MATLAB:svd:matrixWithNaNInf')
                     disp('err')
-                    pause(0.2)
+                    pause
                     trajErr(:, i_traj,i_rho)=nan(length(x0),1);
                     nodeEnergy(:,i_traj,i_rho)=nan(length(x0),1); 
-                end
-            end
-            
-        end % rho
-        compTime(i_traj)=toc;
+                else; throw(ME)
+                end              
+            end % end try    
+        end % rho       
     end % t_traj
+    
     Energy(i_set).(sprintf('s%dtrajErr',s))= trajErr;
-    Energy(i_set).(sprintf('s%dNodeEnergy',s))=nodeEnergy;
-    Energy(i_set).compuTime=compTime
-    % Get idx of time where Err is min
+    Energy(i_set).(sprintf('s%dNodeEnergy',s))= nodeEnergy;
+    
+    % Get idx of time where mean network Err is min at each rho 
     [~,minErr]=min(squeeze(mean(trajErr))); 
     Energy(i_set).T_min(:,s)=minErr';
     
     end % end states loop
+    toc
 end 
 
-save('Data/Energy.mat', 'Energy', 't_traj', 'rho', 'freq', 'info')
+%save(fullfile(datafold, '/Energy.mat'), 'Energy', 't_traj', 'rho', 'freq_band', 'relax', 'info')
 disp('Energy Calc done')
 
+
+%% Part 2.5: Quantify error percentile for each patient and state
+
+i_ict(ismember(i_ict,rm))=[];
+
+percentRank = @(YourArray, TheProbes) reshape( mean( bsxfun(@le,...
+    YourArray(:), TheProbes(:).') ) * 100, size(TheProbes) );
+
+err_stats=zeros(length(t_traj),length(rho), length(i_ict)*s);
+
+
+allRanks=zeros(length(t_traj),length(rho),length(i_ict));
+for i_set=1:length(i_ict)
+    phaseRanks=zeros(length(t_traj),length(rho),3);
+    for s=1:3
+        % Average error across nodes
+        errs=squeeze(mean(Energy(i_ict(i_set)).(sprintf('s%dtrajErr',s))));
+        % Error percentile out of entire "parameter square" for as single phase
+       phaseRanks(:,:,s)=percentRank(errs,errs);
+       err_stats(:,:,(i_set-1)*3+s)=errs;
+
+    end
+    allRanks(:,:,i_set)=max(phaseRanks,[],3); % get max error at each cell across phases
+end
+    
+max_percentiles=max(allRanks,[],3);
+
+figure(1)
+clf
+imagesc(max_percentiles')
+set(gca,'YDir','normal')
+caxis([0,100])
+title('maximum error percentile across all siezures and phases')
+xticklabels(strsplit(sprintf('%0.02f ',t_traj')))
+yticklabels(strsplit(sprintf('%0.02f ',rho)))
+yticks([1:length(rho)])
+ylabel('\rho'); xlabel('\tau'); colorbar
+
+[pct_err, i_err]=min(max_percentiles, [], 'all', 'linear')
+[t_opt, r_opt]=ind2sub(size(max_percentiles), i_err)
+mn_err= [mean(err_stats(t_opt, r_opt, :)),std(err_stats(t_opt, r_opt, :))] 
+
+save(fullfile(datafold, '/Energy.mat'), 'err_stats', '-append')
 
 %% Part 3: Add state Energy to State_Metrics
 
 % Define optimal T and rho (use  functions below to work this out)
-t_opt=6;
-r_opt=6; 
+t_opt=7;
+r_opt=7; 
+i_ict=find(strcmp({dataSets_clean.type},'ictal'));
 
 for i_set=i_ict
     State_metrics(i_set).optEnergy=[];
@@ -237,44 +266,43 @@ for i_set=i_ict
      State_metrics(i_set).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
      State_metrics(i_set+length(i_ict)).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
     end
-    State_metrics(i_set).optEnergyZ=(State_metrics(i_set).optEnergy-mean(State_metrics(i_set).optEnergy(:)))/...
-        std(State_metrics(i_set).optEnergy(:));
-    State_metrics(i_set+length(i_ict)).optEnergyZ=(State_metrics(i_set).optEnergy-mean(State_metrics(i_set).optEnergy(:)))/...
-        std(State_metrics(i_set).optEnergy(:));
+    State_metrics(i_set).optEnergyZ= zscore(State_metrics(i_set).optEnergy, [], 'all');
+    State_metrics(i_set+length(i_ict)).optEnergyZ= zscore(State_metrics(i_set).optEnergy, [], 'all');
 end
 
 tOpt=t_traj(t_opt);
 rOpt=rho(r_opt);
-save('Data/State_metrics.mat', 'State_metrics', 'tOpt', 'rOpt');
+%save('Data/State_metrics.mat', 'State_metrics', 'tOpt', 'rOpt', '-append');
 
 disp('done')
 %% Visualization for zooming in 
 
+for i_set=i_ict
 figure(3); clf
-i_set=38
+traj_lim=[1:10];
+rho_lim=[1:10];
+i_set
 
 for s=1:3
 
 eng=Energy(i_set).(sprintf('s%dNodeEnergy',s));
 trajErr=Energy(i_set).(sprintf('s%dtrajErr', s));
     [~,minErr]=min(squeeze(mean(trajErr))); 
-    Energy(i_set).T_min(:,s)=minErr';
+    Energy(i_set).T_min(:,s)=minErr'
 
-st=1;
-lim=10;
-subset=trajErr(:, st:lim, st:lim);
+subset=trajErr(:, traj_lim, rho_lim);
 
 figure(1)
-[X,Y,Z] = ndgrid(1:size(subset,1), st:lim, st:lim);
+[X,Y,Z] = ndgrid(1:size(subset,1), traj_lim, rho_lim);
 pointsize = 30;
 scatter3(X(:), Y(:), Z(:), pointsize, subset(:));
 xlabel('nodes')
 ylabel('T')
 zlabel('rho')
-set(gca, 'YTickLabels', round(t_traj(st:lim),2));
-set(gca, 'ZTickLabels', round(rho(st:lim),2));
-yticks((st:lim))
-zticks((st:lim))
+set(gca, 'YTickLabels', round(t_traj(traj_lim),2));
+set(gca, 'ZTickLabels', round(rho(rho_lim),2));
+yticks((traj_lim))
+zticks((rho_lim))
 
 colorbar
 colormap(autumn(64))
@@ -288,29 +316,30 @@ set(gca,'YDir','normal')
 xlabel('rho')
 ylabel('T')
 colormap(autumn(64))
-set(gca, 'YTickLabels', round(t_traj(st:lim),2));
-set(gca, 'XTickLabels', round(rho(st:lim),2));
+yticks(traj_lim); xticks(rho_lim);
+set(gca, 'YTickLabels', round(t_traj(traj_lim),3));
+set(gca, 'XTickLabels', round(rho(rho_lim),2));
 colorbar
 
 figure(3)
-hold on
-round(rho(st:lim),2)
 % plot error by time
-plot(squeeze(mean(subset)), 'color', cols(s,:))
+semilogy(squeeze(mean(subset)), 'color', cols(s,:))
+hold on
 xlabel('T')
 ylabel('Error')
-set(gca, 'XTickLabels', round(rho(st:lim),2));
-xticks((st:lim)-st+1)
-%legend(string(round(rho(st:lim),2)'))
+set(gca, 'XTickLabels', round(t_traj(traj_lim),2));
+xticks((rho_lim)-rho_lim(1)+1)
 % 
-[~,idx]=min(squeeze(mean(subset)))
- pause(.3)
+[~,idx]=min(squeeze(mean(subset)), [], 'all', 'linear')
+ %pause
 end
-
+pause
+end
 %% Find min and max of all error trajectories
 % Get min, get max, choose value in the middle
 
-engIdx=[Energy.T_min];
+i_ict(ismember(i_ict,rm))=[];
+engIdx=[Energy(i_ict).T_min];
 
 min(min(engIdx(1,:)))
 max(max(engIdx(1,:)))
@@ -324,51 +353,6 @@ for i=1:10
 end
 
 
-%% Quantify error percentile for each patient and state
 
-percentRank = @(YourArray, TheProbes) reshape( mean( bsxfun(@le,...
-    YourArray(:), TheProbes(:).') ) * 100, size(TheProbes) );
-
-mins=zeros(10,10,3);
-maxes=zeros(10,10,3);
-
-
-for t_opt= 1:10
-    for r_opt= 1:10
-        
-    allRanks=zeros(length(i_ict),3);
-    for i_set=i_ict
-        for s=1:3
-            % Average error across nodes
-            errs=squeeze(mean(Energy(i_set).(sprintf('s%dtrajErr',s))));
-           allRanks(i_set,s)=percentRank(errs(:,r_opt),errs(t_opt,r_opt));
-        end
-    end
-    
-    % Get min/max error across all siezures and states for param set
-    mn=min(allRanks);
-    mx=max(allRanks);
-   
-    
-    mins(t_opt, r_opt,:)=mn;
-    maxes(t_opt, r_opt,:)=mx;
-   
-    end  
-end
-
-
-figure(2)
-imagesc(min(mins, [], 3))
-caxis([0,100])
-title('maximum percentile')
-colorbar
-figure(1)
-clf
-imagesc(max(maxes, [], 3))
-caxis([0,100])
-title('maximum error percentile across all siezures and phases')
-xticklabels(Energy(1).t_traj)
-yticklabels(strsplit(sprintf('%0.03f ',Energy(1).rho)))
-colorbar
 
 

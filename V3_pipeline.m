@@ -29,7 +29,7 @@ load(sprintf('Data/%sMetric_Matrices.mat', Null))
 load(sprintf('Data/%sState_Metrics.mat', Null))
 
 % 5) Compute Control Energy
-% run get_opt_energy.mat
+% run get_opt_energy.m
 load('Data/Energy.mat')
 
 % 6) Robustness
