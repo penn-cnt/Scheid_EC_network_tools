@@ -1,17 +1,5 @@
 % Get Energy
-datafold='Data';
-
-load([datafold,'/dataSets_clean.mat'])
-load([datafold,'/Partitions.mat'])
-load([datafold,'/Networks.mat'])
-load([datafold,'/State_Metrics.mat'])
-
-i_ict=find(strcmp({dataSets_clean.type},'ictal'));
-nSets=size(Networks,2);
-rm=[31    36    33    35    29];
-
-cols=[[227,187,187]; [190,8,4]; [138,4,4];[140,42,195];[75,184,166];[242,224,43];[74,156,85];...
-   [80,80,80]; [255,255,255]]/255;
+run('initProject.m')
 
 %% Part 1: Prepare Energy struct with initial and final values
 
@@ -136,8 +124,9 @@ relax= 1e-5; % value along non-driven diagonals of "relaxed" B matrix
 
 % Energy Parameters to Test
 % On first pass, run with large parameter set to find best parameters
-t_traj= power(10, linspace(-2, log10(6), 10)); %log10 distribution b/w 1-5 %linspace(0.006, 0.15, 10);
-rho= [power(10, linspace(-2, 2, 10)), 110, 150]; % log10 distribution b/w 1-30
+tr= power(10, linspace(-2, log10(6), 10));
+t_traj= round([tr(1:7),(1:6)],3); %log10 distribution b/w 0-1, then linear 1-6
+rho= round([power(10, linspace(-2, 2, 10)), 110, 150],3); % log10 distribution b/w 1-30, rounded to 3 places
 
 for i_set=i_ict
     tic
@@ -155,7 +144,8 @@ for i_set=i_ict
     
     [nodeEnergy, trajErr]= deal(zeros(length(x0),...
         length(t_traj), length(rho)));
-    compTime=zeros(length(t_traj), 1);
+
+    xOpt=zeros(length(x0),length(t_traj), length(rho));
     
     for i_traj= 1:length(t_traj) % try different time horizons
         
@@ -169,6 +159,7 @@ for i_set=i_ict
                     [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
                     nodeEnergy(n,i_traj,i_rho)=sum(vecnorm(B*U_opt').^2);
                     trajErr(n, i_traj,i_rho)=n_err;
+                    xOpt(n, i_traj, i_rho)=mean((X_opt(end,1:N)'-xf).^2);
                     
                     % Uncoment to view output
 %                     figure(1); imagesc(U_opt'); title('U'); 
@@ -196,18 +187,15 @@ for i_set=i_ict
     
     Energy(i_set).(sprintf('s%dtrajErr',s))= trajErr;
     Energy(i_set).(sprintf('s%dNodeEnergy',s))= nodeEnergy;
+    Energy(i_set).(sprintf('s%Xopt_dist',s))= xOpt;
     
-    % Get idx of time where mean network Err is min at each rho 
-    [~,minErr]=min(squeeze(mean(trajErr))); 
-    Energy(i_set).T_min(:,s)=minErr';
     
     end % end states loop
     toc
 end 
 
-%save(fullfile(datafold, '/Energy.mat'), 'Energy', 't_traj', 'rho', 'freq_band', 'relax', 'info')
+save(fullfile(datafold, '/EnergyNEW.mat'), 'Energy', 't_traj', 'rho', 'freq_band', 'relax', 'info')
 disp('Energy Calc done')
-
 
 %% Part 2.5: Quantify error percentile for each patient and state
 
@@ -216,7 +204,8 @@ i_ict(ismember(i_ict,rm))=[];
 percentRank = @(YourArray, TheProbes) reshape( mean( bsxfun(@le,...
     YourArray(:), TheProbes(:).') ) * 100, size(TheProbes) );
 
-err_stats=zeros(length(t_traj),length(rho), length(i_ict)*s);
+err_stats=zeros(length(t_traj),length(rho), length(i_ict)*3);
+dist_err_stats=zeros(length(t_traj),length(rho), length(i_ict)*3);
 
 
 allRanks=zeros(length(t_traj),length(rho),length(i_ict));
@@ -225,32 +214,58 @@ for i_set=1:length(i_ict)
     for s=1:3
         % Average error across nodes
         errs=squeeze(mean(Energy(i_ict(i_set)).(sprintf('s%dtrajErr',s))));
+        dist_errs=squeeze(mean(Energy(i_ict(i_set)).(sprintf('s%Xopt_dist',s))));
+        
         % Error percentile out of entire "parameter square" for as single phase
-       phaseRanks(:,:,s)=percentRank(errs,errs);
+       phaseRanks(:,:,s)=errs;  %percentRank(errs,errs);
        err_stats(:,:,(i_set-1)*3+s)=errs;
+       
+       dist_phaseRanks(:,:,s)=dist_errs;  %percentRank(errs,errs);
+       dist_err_stats(:,:,(i_set-1)*3+s)=dist_errs;
 
     end
-    allRanks(:,:,i_set)=max(phaseRanks,[],3); % get max error at each cell across phases
+    allRanks(:,:,i_set)=max(phaseRanks,[],3); 
+    dist_allRanks(:,:,i_set)=max(dist_phaseRanks,[],3);   % get max error at each cell across phases
 end
     
 max_percentiles=max(allRanks,[],3);
+dist_max_percentiles=max(dist_allRanks,[],3);
 
 figure(1)
 clf
-imagesc(max_percentiles')
+imagesc(percentRank(max_percentiles', max_percentiles'))
 set(gca,'YDir','normal')
 caxis([0,100])
 title('maximum error percentile across all siezures and phases')
+xticks([1:length(t_traj)])
 xticklabels(strsplit(sprintf('%0.02f ',t_traj')))
 yticklabels(strsplit(sprintf('%0.02f ',rho)))
 yticks([1:length(rho)])
 ylabel('\rho'); xlabel('\tau'); colorbar
+xtickangle(45);
+
+figure(2)
+clf
+imagesc(percentRank(dist_max_percentiles', dist_max_percentiles'))
+set(gca,'YDir','normal')
+caxis([0,100])
+title('maximum distance error percentile across all siezures and phases')
+xticks([1:length(t_traj)])
+xticklabels(strsplit(sprintf('%0.02f ',t_traj')))
+yticklabels(strsplit(sprintf('%0.02f ',rho)))
+yticks([1:length(rho)])
+ylabel('\rho'); xlabel('\tau'); colorbar
+xtickangle(45);
 
 [pct_err, i_err]=min(max_percentiles, [], 'all', 'linear')
 [t_opt, r_opt]=ind2sub(size(max_percentiles), i_err)
 mn_err= [mean(err_stats(t_opt, r_opt, :)),std(err_stats(t_opt, r_opt, :))] 
 
-save(fullfile(datafold, '/Energy.mat'), 'err_stats', '-append')
+%save(fullfile(datafold, '/Energy.mat'), 'err_stats', '-append')
+% saveas(gcf,'FigsV3.3/energy/energy_max_err_pcnt.png')
+% saveas(gcf,'FigsV3.3/energy/energy_max_err_pcnt.fig')
+% saveas(gcf,'FigsV3.3/energy/energy_max_distErr_pcnt.png')
+% saveas(gcf,'FigsV3.3/energy/energy_max_distErr_pcnt.fig')
 
 %% Part 3: Add state Energy to State_Metrics
 

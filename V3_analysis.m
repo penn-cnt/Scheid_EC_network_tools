@@ -1,42 +1,11 @@
-%V3_analysis
+%% V3_analysis  data
 
-cd '/Users/bscheid/Documents/LittLab/PROJECTS/p01_EC_controllability/v3/Code'
+run('initProject.m')
 
-Null='';
-datafold='Data';
-load(sprintf('%s/dataSets_clean.mat', datafold));
-load(sprintf('%s/subjects.mat', 'DataV3.2'));
-load(sprintf('%s/%sNetworks.mat',datafold, Null)); 
-load(sprintf('%s/%sPartitions.mat', datafold, Null));
-load(sprintf('%s/%sMetric_matrices.mat', datafold, Null)); 
-load(sprintf('%s/%sState_metrics.mat', datafold, Null))
-%load('%s/avgDist.mat');
+% i_soz=true(1,39); i_soz(16)=false; i_soz= find(i_soz);
 
-eval(['Networks=', Null, 'Networks'])
-eval(['Partitions=', Null, 'Partitions'])
-eval(['Metric_matrices=', Null, 'Metric_matrices'])
-eval(['State_metrics=', Null, 'State_metrics'])
 
-% if strcmp(Null,'Null')
-%     load('Data/nullData.mat')
-%     dataSets_clean=nullData;
-% end
-
-addpath(genpath('~/Documents/CODE/'))
-
-cols=[[227,187,187]; [190,8,4]; [138,4,4];[140,42,195];[75,184,166];[242,224,43];[74,156,85];...
-   [80,80,80]; [255,255,255]]/255;
-
-i_soz=true(1,39); i_soz(16)=false; i_soz= find(i_soz);
-
-i_ict=find(strcmp({Partitions.type},'ictal'));
-i_preict=find(strcmp({Partitions.type},'preictal'));
-wSim='wSim_0_01'; % default sim network. 
-
-nSets=length(Partitions);
-nIct=nSets/2;
-
-                %% States Analysis %%
+%% States Analysis %%
                 
 % Display Median State Times vs.Lengths of Largest 3 states
 % note, must run above section first z(tran)=m
@@ -95,20 +64,20 @@ writetable(stateTable,'Data/resultsTable.xlsx', 'Range', 'A3:H6')
 clear mn_len mn_med mn_lenpi mn_medpi labels x_ict y_ict x_preict y_preict meds_preict lens_preict ...
     meds_ict lens_ict
 
-
-%% Is there a difference between states? (creates glob,c_i_preict_glob, i_ict_glob)
+%% Friedmans- Is there a difference between states? (creates glob,c_i_preict_glob, i_ict_glob)
 
 i_ict=find(strcmp({Partitions.type},'ictal'));
 i_preict=find(strcmp({Partitions.type},'preictal'));
 
 ctype='bonferroni';
-%display= 'off';
-groupOn= false;
+display= 'off'; %DON'T TOUCH!
+
+groupOn= true;
 
 analysis=struct();
 diffs=struct();
 glob=struct(); c_i_preict_glob=struct(); c_i_ict_glob=struct();
-metrics={'optEnergy'}%'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'}; %'optEnergySOZ'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
+metrics={'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'optEnergy'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
 
 lstID=State_metrics(1).ID; ctr=1; 
 for i_set=1:nSets
@@ -175,7 +144,7 @@ end
 
 stats_ict=zeros(length(metrics),4);
 stats_preict=zeros(length(metrics),4);
-xl_ptr=1; if groupOn; xl_ptr= 21; end
+xl_ptr=1; if groupOn; xl_ptr= 5*length(metrics)+1; end
 
 %metrics={'optEnergy'}
 % Get group level averages
@@ -250,12 +219,13 @@ end
 
     
 disp('done')
+
 %% Display results of Friedman's test individually
 
 ctr=1;
 alpha=.7; 
 
-metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'}; % optEnergy'
+metrics= {'optEnergy'} %{'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'}; % optEnergy'
 
 
 for type=[i_ict', i_preict']
@@ -306,16 +276,15 @@ for type=[i_ict', i_preict']
     ctr= ctr+1
 end
 disp('done')
-%% Group Level Trends Ictal preictal
 
+%% Group Level Trends Ictal/Preictal (must run Friedman's block first)
 % 
 % Boxplot visualization of group level trends using Friedman's test. 
 
 fig_ctr=6;
 alpha=0.05;
 
-
-metrics= {'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
+metrics= {'optEnergy'}'; %{'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
 
 %metrics={'optEnergySOZ'}
 for type={'i_ict', 'i_preict'} %, 'i_null'
@@ -354,30 +323,6 @@ for type={'i_ict', 'i_preict'} %, 'i_null'
     fig_ctr= fig_ctr+2;
     suptitle(sprintf('%sal, alpha: %0.2f grouped: %s', type{1}(3:end),alpha, string(groupOn)))
 end
-
-%% Fit a Linear Mixed model to metrics
-
-% Get table with (ID, Phase, Metric)
-metrics= {'aveCtrl'};
-%, 'modalCtrl', 'strength'};
-for m= metrics
-    varnames= {m{1},'Phase', 'ID'};
-    tbl=table([],[],[],'VariableNames', varnames); 
-    for i=i_ict
-        tbl= [tbl; table(mean(State_metrics(i).(m{1})(:,1:3))', [1:3]',...
-            repmat(string([Metric_matrices(i).ID+"_"+dataSets_clean(i).sz_subtype]),3,1), ...
-            'VariableNames', varnames)];
-    end
-
-    tbl.Phase = categorical(tbl.Phase); 
-    tbl.ID = categorical(tbl.ID);
-    
-lme = fitlme(tbl, sprintf('%s ~ Phase + (1|ID)', m{1}))
-lme2 = fitlme(tbl, sprintf('%s ~ Phase + (1|ID) + (Phase-1|ID)', m{1}))
-lme3 = fitlme(tbl, sprintf('%s ~ Phase + (Phase|ID)', m{1}))
-
-end
-
 
 %% Is there a correlation between metrics?
 clf
@@ -437,12 +382,72 @@ title(sprintf('Corr values between %s and %s', metric1, metric2))
 % figure(3)
 % imagesc((sozCorrP<0.05).*(sozCorr<0))
 
+%% Individual Energy Analysis
+
+i_set= 2; 
+
+p=Partitions(i_set);
+d=dataSets_clean(i_set);
+stDiff=round(d.UEOStart-d.EECStart);
+data= d.data(:,1+Fs*stDiff:end);
+Fs=round(d.Fs);
+
+xf=Energy(i_set).xf;
+bandfun=@(x)bandpower(x', Fs, freq_band)';
+
+for s=1:3
+    t1= find(p.contigStates==s, 1, 'first');
+    t2= find(p.contigStates==s, 1, 'last');
+    signal=data(1:end,(Fs*(t1-1)+1:Fs*t2));
+    
+    x0=Energy(i_set).x0(:,s);
+    
+    x0_t=MovingWinFeats(signal,Fs, 1, 1, bandfun);
+    
+% Look at Energy Trajectory- Distance over time
+figure(1); clf
+subplot(121); hold on
+plot(d.data'+[1:size(d.data,1)]*1000);
+vline(d.Fs*(t1-1)+1)
+vline(d.Fs*t2)
+axis tight
+subplot(122)
+plot(signal'+[1:size(signal,1)]*1000);
+axis tight; 
+figure(2)
+imagesc(p.states) 
+colormap(gca, cols([5,2,6],:));
+set(gca, 'YTick', [], 'fontsize', 18)
+
+figure(3)
+imagesc(reshape(xf, 8, 8))
+title('avg final bandpower (preictal)'), caxis([0,.5])
+colorbar
+
+figure(4)
+imagesc(reshape(x0, 8, 8))
+title(sprintf('avg bandpower ictal phase %d (%s %d)', s, d.ID, d.block))
+caxis([0,.5])
+colorbar
+pause
+end
+
+
+    figure(1); imagesc(U_opt'); title('U'); 
+    figure(2);
+    subplot(1,6,[2:5]); imagesc([X_opt(:,1:N)'])% imagesc(X_opt(:,2:N)'); title('X');
+    subplot(1,6,[2:5]); imagesc([X_opt(1,1:N)',X_opt(end,1:N)'])
+    cl=caxis;
+    subplot(1,6,1); imagesc(log(x0)); title('x0'); caxis(cl)
+    subplot(1,6,6); imagesc(log(xf)); title('xf');  caxis(cl)
+
 %% View Nodes and Values spatially  %%
 figure(1)
 clf;
-metrics={'optEnergySOZ'};
+metrics={'optEnergy'};
 cmap=colormap; 
-for i_set=i_soz %1:39
+for i_set=1:39
+    i_set
     figure(1)
     clf; hold on
     if isempty(dataSets_clean(i_set).sozGrid)
@@ -466,10 +471,10 @@ for i_set=i_soz %1:39
             hold on
            
             % Show control gradient
-            scatter(X, Y, 500*ctrl, 'b', 'filled')
+            %scatter(X, Y, 500*ctrl, 'b', 'filled')
             
             % Show metric
-            %scatter(X,Y,c_met(:,s)+80, st(:,s), 'filled')
+            scatter(X,Y,c_met(:,s)+80, st(:,s), 'filled')
             
               % Show control metric value
 %             scatter(X(EnergyMetric(i_set).aveCtrl_NOI(:,s)), ...
@@ -477,10 +482,7 @@ for i_set=i_soz %1:39
 
               % Show soz
               scatter(X(soz), Y(soz),100, 'r')
-              
-
-              
-              
+             
             xticklabels([]); yticklabels([])
             xlim([.5,8.5]); ylim([.5,8.5]);
             xlabel(sprintf('phase %d', s))
@@ -491,90 +493,23 @@ for i_set=i_soz %1:39
         
     end
     suptitle(sprintf('Spatial Metrics for %s, block %d', dataSets_clean(i_set).ID, dataSets_clean(i_set).block))
-    pause
+   pause
 end
-
-
-
-%% Connection Density, distance correlation
-
-[Density, RPosNeg_icov, RPosNeg_pcm, ...
-    Corr_icov, Corr_pcm]=deal(zeros(nSets,2));
-
-f_mnstd=@(x)[mean(x), std(x)]; 
-
-for i_set=1:nSets
-    config_icov= Networks(i_set).config_icov;
-    config_pcm= Networks(i_set).config_pcm;
-    pcm= Networks(i_set).pcm;
-    
-    % Compute matrix density
-    density= sum(config_icov~=0)./size(config_icov,1);
-    Density(i_set,:)=f_mnstd(density);
-
-    % Compute ratio of pos to neg connections
-    rPosNeg_icov= sum(config_icov>0)./sum(config_icov<0);
-    rPosNeg_pcm= sum(config_pcm>0)./sum(config_pcm<0);
-    
-    RPosNeg_icov(i_set,:)=f_mnstd(rPosNeg_icov);
-    RPosNeg_pcm(i_set,:)=f_mnstd(rPosNeg_pcm);
-    
-    % Compute distance correlation
-    subj= subjects(strcmp({subjects.ID}, Networks(i_set).ID));
-    triu_i=find(triu(ones(size(pcm,1)),1)~=0);
-    dist=pdist2(subj.gridCoords(1:end,:),subj.gridCoords(:,1:end));
-    dist=dist(triu_i); 
-    try
-    [corr_icov,pcorr_icov]=corr(dist(~isnan(dist)), config_icov(~isnan(dist),:));
-    [corr_pcm,pcorr_pcm]=corr(dist(~isnan(dist)), config_pcm(~isnan(dist),:));
-    catch ME
-        disp(ME)
-    end
-    
-    %Fisher transform to calculate mean, then transform back
-    Corr_icov(i_set,:)=[tanh(mean(atanh(corr_icov))), sum(pcorr_icov<(0.05/nSets))];
-    Corr_pcm(i_set,:)=[tanh(mean(atanh(corr_pcm))), sum(pcorr_pcm<(0.05/nSets))];
-    
-end
-
-NetworkTable=table({Networks.ID}', {Networks.type}', {Networks.block}', Density,...
-    RPosNeg_icov, RPosNeg_pcm, Corr_icov, Corr_pcm ,...
-    'VariableNames', {'ID', 'type', 'block', 'Density', 'RposNeg_icov',...
-    'RposNeg_pcm', 'corricov', 'corrpcm'});
-writetable(NetworkTable,'Data/networkTable.csv')
-
-figure(5)
-subplot(121)
-histogram(Density(1:39,1),10)
-title('Average ictal PCM density')
-subplot(122)
-histogram(Density(40:end,1),10)
-title('Average preictal PCM density')
-
-figure(6)
-subplot(121)
-histogram(RPosNeg_pcm(1:39,1),10)
-title('ictal')
-subplot(122)
-histogram(RPosNeg_pcm(40:end,1),10)
-title('preictal')
-suptitle('average positive/negative edge ratio')
-
 
 %% Permutation test Method 1: See if SOZ nodes are relevant
 
 percentRank = @(YourArray, TheProbes) reshape( mean( bsxfun(@le,...
     YourArray(:), TheProbes(:).') ) * 100, size(TheProbes) );
 
-metrics={'strength','aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'}
-nperms=2000;  %number of 
+metrics={'aveCtrl','modalCtrl', 'tModalCtrl','pModalCtrl'}
+nperms=1000;  %number of 
  
 sozRanks=struct(); 
 disp('Calculating sozRanks...')
 
 for i_set=i_ict
     i_set
-    % Grab SOZ nodes from pre ict and ictal
+    % Grab SOZ nodes from ictal phase
     if isempty(dataSets_clean(i_set).sozGrid); continue; end
     soz=dataSets_clean(i_set).sozGrid; 
     if sum(soz)==0; continue; end
@@ -590,7 +525,8 @@ for i_set=i_ict
     d=dataSets_clean(i_set); 
     st= Partitions(i_set).states;
     %figure(1); clf; hold on
-        Fs=round( dataSets_clean(i_set).Fs);
+    Fs=round( dataSets_clean(i_set).Fs);
+    
     if strcmp(dataSets_clean(i_set).type, 'ictal')
         stDiff=round(dataSets_clean(i_set).UEOStart-dataSets_clean(i_set).EECStart);
         data= dataSets_clean(i_set).data(:,1+Fs*stDiff:end)';
@@ -610,7 +546,7 @@ for i_set=i_ict
 %     title('Signal'); axis tight
 
     for m=metrics
-%         figure(3); clf;
+        % figure(1); clf;
         for s=1:3
         % Difference between ictal and preictal phase
             %diffs=State_metrics(i_set).(m{1})(:,s)-State_metrics(i_set+39).(m{1})(:,1);
@@ -621,15 +557,16 @@ for i_set=i_ict
             % Get absolute value of sum
             soz_diffs=mean(abs(soz_diffs),1); 
             dist_diffs=mean(abs(dist_diffs),1); 
+            sozRanks(i_set).(m{1})(s)=percentRank(dist_diffs, soz_diffs);
                         
 %             subplot(1,3,s)
 %             hold on
 %             histogram(dist_diffs)
-%             stem(quantile(dist_diffs, [.05,.25,.5,.75,.95]), ones(1,5)*100, 'linewidth', 2)
+%             stem(quantile(dist_diffs, [.05,.25,.5,.75,.95, .983]), ones(1,6)*100, 'linewidth', 2)
 %             stem(soz_diffs, 100, 'linewidth', 2)
-              sozRanks(i_set).(m{1})(s)=percentRank(dist_diffs, soz_diffs);
+              
         end   
-%         suptitle(sprintf('%s, HUP %s, siezure %d', m{1}, d.ID,d.block))
+         %suptitle(sprintf('%s, HUP %s, siezure %d', m{1}, d.ID,d.block))
         %pause
         
     end
@@ -638,18 +575,22 @@ end
 disp('done with sozRanks calculation')
 
 %% Display permutation test result
-a=[1     2     3     4     5     6     7     8     9    10    11    12    13    14    15    25    26    28];
+
+ptSOZ=cellfun(@sum, {dataSets_clean(1:end/2).sozGrid})>0;
+
+alpha=5; %.2/3*100/2;
 
 % for each metric
-metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength'}
+metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'}
 figure(2); clf; 
 figure(3); clf;
 for m=1:length(metrics)
+        
     figure(2)
     subplot(1,length(metrics), m)
     pcnts=[sozRanks.(metrics{m})];
     sumSig=sum(pcnts>95)+sum(pcnts<5);
-    scatter(repmat([1:3],1,18)+normrnd(0,.05, [1,54]),  pcnts, 60, repmat(parula(18),3,1), 'filled')
+    scatter(repmat([1:3],1,length(pcnts)/3)+normrnd(0,.05, [1,numel(pcnts)]),  pcnts, 60, repmat(parula(length(pcnts)/3),3,1), 'filled')
     title(sprintf('%s', metrics{m}))
     xlim([.5,3.5])
     ylim([-5, 105])
@@ -660,24 +601,26 @@ for m=1:length(metrics)
     
     figure(3)
     subplot(1,length(metrics), m)
-    imagesc(double(reshape([sozRanks.(metrics{m})],3,18)'>=97.5)...
-        +2*double(reshape([sozRanks.(metrics{m})],3,18)'<=2.5))
-    yticks([1:18])
-    blk=cellfun(@num2str, {Metric_matrices(a).block}', 'UniformOutput', false);
-    yticklabels(strcat({Metric_matrices(a).ID}', {' '}, blk));
+    imagesc(double(reshape([sozRanks.(metrics{m})],3,length(pcnts)/3)'>=(100-alpha))...
+        +2*double(reshape([sozRanks.(metrics{m})],3,length(pcnts)/3)'<=alpha))
+    yticks([1:length(ptSOZ)])
+    blk=cellfun(@num2str, {Metric_matrices(ptSOZ).block}', 'UniformOutput', false);
+    yticklabels(strcat({Metric_matrices(ptSOZ).ID}', {' '}, blk));
+    title(metrics{m})
 end
 
 figure(2)
 suptitle('Preictal vs. phase, SOZ permutation test results')
 
-
+figure(3)
+suptitle(sprintf('Green: SOZ metric >= %0.3f perms, Yellow: SOZ metric <=%0.3f perms', 1-alpha/100, alpha/100))
 
 %% Permutation test Method 2: See which nodes are on the edges of the distribution
 
 percentRank = @(YourArray, TheProbes) reshape( mean( bsxfun(@le,...
     YourArray(:), TheProbes(:).') ) * 100, size(TheProbes) );
 
-metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength', 'clustering3'};
+metrics={'pModalCtrl'}%, %'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength', 'clustering3'};
 nperms=2000;  %number of 
  
 kRanks=struct(); 
@@ -744,9 +687,97 @@ for i_set=i_ict
             
         end   
     end
-    
+
+    pause
 end
 disp('done with sozRanks calculation')
+
+%% NOT USED: Fit a Linear Mixed model to metrics
+
+% Get table with (ID, Phase, Metric)
+metrics= {'aveCtrl'};
+%, 'modalCtrl', 'strength'};
+for m= metrics
+    varnames= {m{1},'Phase', 'ID'};
+    tbl=table([],[],[],'VariableNames', varnames); 
+    for i=i_ict
+        tbl= [tbl; table(mean(State_metrics(i).(m{1})(:,1:3))', [1:3]',...
+            repmat(string([Metric_matrices(i).ID+"_"+dataSets_clean(i).sz_subtype]),3,1), ...
+            'VariableNames', varnames)];
+    end
+
+    tbl.Phase = categorical(tbl.Phase); 
+    tbl.ID = categorical(tbl.ID);
+    
+lme = fitlme(tbl, sprintf('%s ~ Phase + (1|ID)', m{1}))
+lme2 = fitlme(tbl, sprintf('%s ~ Phase + (1|ID) + (Phase-1|ID)', m{1}))
+lme3 = fitlme(tbl, sprintf('%s ~ Phase + (Phase|ID)', m{1}))
+
+end
+
+%% NOT USED: Connection Density, distance correlation
+
+[Density, RPosNeg_icov, RPosNeg_pcm, ...
+    Corr_icov, Corr_pcm]=deal(zeros(nSets,2));
+
+f_mnstd=@(x)[mean(x), std(x)]; 
+
+for i_set=1:nSets
+    config_icov= Networks(i_set).config_icov;
+    config_pcm= Networks(i_set).config_pcm;
+    pcm= Networks(i_set).pcm;
+    
+    % Compute matrix density
+    density= sum(config_icov~=0)./size(config_icov,1);
+    Density(i_set,:)=f_mnstd(density);
+
+    % Compute ratio of pos to neg connections
+    rPosNeg_icov= sum(config_icov>0)./sum(config_icov<0);
+    rPosNeg_pcm= sum(config_pcm>0)./sum(config_pcm<0);
+    
+    RPosNeg_icov(i_set,:)=f_mnstd(rPosNeg_icov);
+    RPosNeg_pcm(i_set,:)=f_mnstd(rPosNeg_pcm);
+    
+    % Compute distance correlation
+    subj= subjects(strcmp({subjects.ID}, Networks(i_set).ID));
+    triu_i=find(triu(ones(size(pcm,1)),1)~=0);
+    dist=pdist2(subj.gridCoords(1:end,:),subj.gridCoords(:,1:end));
+    dist=dist(triu_i); 
+    try
+    [corr_icov,pcorr_icov]=corr(dist(~isnan(dist)), config_icov(~isnan(dist),:));
+    [corr_pcm,pcorr_pcm]=corr(dist(~isnan(dist)), config_pcm(~isnan(dist),:));
+    catch ME
+        disp(ME)
+    end
+    
+    %Fisher transform to calculate mean, then transform back
+    Corr_icov(i_set,:)=[tanh(mean(atanh(corr_icov))), sum(pcorr_icov<(0.05/nSets))];
+    Corr_pcm(i_set,:)=[tanh(mean(atanh(corr_pcm))), sum(pcorr_pcm<(0.05/nSets))];
+    
+end
+
+NetworkTable=table({Networks.ID}', {Networks.type}', {Networks.block}', Density,...
+    RPosNeg_icov, RPosNeg_pcm, Corr_icov, Corr_pcm ,...
+    'VariableNames', {'ID', 'type', 'block', 'Density', 'RposNeg_icov',...
+    'RposNeg_pcm', 'corricov', 'corrpcm'});
+writetable(NetworkTable,'Data/networkTable.csv')
+
+figure(5)
+subplot(121)
+histogram(Density(1:39,1),10)
+title('Average ictal PCM density')
+subplot(122)
+histogram(Density(40:end,1),10)
+title('Average preictal PCM density')
+
+figure(6)
+subplot(121)
+histogram(RPosNeg_pcm(1:39,1),10)
+title('ictal')
+subplot(122)
+histogram(RPosNeg_pcm(40:end,1),10)
+title('preictal')
+suptitle('average positive/negative edge ratio')
 
 %% Generate Figures
 %close all
@@ -808,6 +839,8 @@ plot(exp(-2*x),'color', rgb_array(7,:))
 plot(exp(-1.2*x),'color', rgb_array(3,:))
 plot(exp(-1*x),'color', rgb_array(4,:))
 colormap(rgb_array([9,6,8,7,2,3,1,4,5]',:))
+
+
 
 
 

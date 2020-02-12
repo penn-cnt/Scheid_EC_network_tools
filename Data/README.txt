@@ -2,10 +2,10 @@ Data folder readme:
 
 Networks.mat  (11/20/19): All patients, networks generated from UEO clean data, gamma=0.5
 Partitions.mat (11/20/19): Partitions generated from Networks.mat, gamma = 0.5, beta=0.01
-Energy.mat (2/3/19): 
-EnergySOZInf.mat (8/13/19): Energy with SOZ as control points, using average bandpower across entire preictal period as a reference
-EenrgySOZInf_B1.mat (8/8/19): settings same as above, however B=1 at control points, zero else. 
-EnergySOZInf_spread.mat (8/13/19): same as EnergySOZInf.mat... no idea. 
+Energy.mat (2/8/20): Energy with single-point control energy
+EnergySOZ.mat (2/8/20): Energy with SOZ as control points, using average bandpower across entire preictal period as a reference, input is gaussian, A_s is NOT normalized!
+EenrgySOZ_B1.mat (2/8/20): settings same as above, however B=1 at control points, 'relax' elsewhere along diagonal, A_s was normalized, 1000 permutations 
+EnergySOZ_spread.mat (2/8/20): same as EnergySOZ_B1.mat, but used Gaussian Spread with parameter sigma, A_s was normalized, 1000 permutations
 
 
 dataSets_clean.mat: 
@@ -28,7 +28,7 @@ all metric values have been zscored across the entire matrix.
 
 Energy.mat:
 - x0: initial state, mean high gamma bandpower across all windows in each phase
-- repMats: representative EC network for each seizure phase. This is the network with the greatest average similarity to all other networks in the phase.  
+- repMats: representative EC network for each seizure phase (NOT NORMALIZED). This is the network with the greatest average similarity to all other networks in the phase.  
 - xf: final state, mean high gamma across all windows in preictal phase
 - x0_z: x0 after zscore across xf and original x0
 - xf_z: xf after zscore across xf and original x0
@@ -37,6 +37,9 @@ Energy.mat:
 NOTE: the following do not include i_ict for the 5 rmoved siezures in their computation.
 - sxtrajErr: computation error for (i_driven node, i_traj, i_rho)
 - sxNodeEnergy: node Energy arranged as (i_driven node, i_traj, i_rho)
-- err_stats: compiled error across all i_ict subjects and states. 
+- err_stats: compiled computational error across all i_ict subjects and states. 
+- nullsets: indices of nodes randomly selected to be soz nodes
+- SOZconfidence: The percentile of null soz energy wrt the real SOZ energy
+- nodeEnergynull: optEnergy calculated for each null.
 
 patients.mat: (not included, relevent version in DataV3.2), includes ALL channel names and ALL gridNames/coords (note ignored coords are included)

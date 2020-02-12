@@ -209,3 +209,45 @@ ncomms=unique(p.quantileCommNum(infInd2,3))
 pause
 
 end
+
+%% Zoomed State Data View
+
+i_set= 9; 
+
+p=Partitions(i_set);
+d=dataSets_clean(i_set);
+stDiff=round(d.UEOStart-d.EECStart);
+data= d.data(:,1+Fs*stDiff:end);
+Fs=round(d.Fs);
+
+xf=Energy(i_set).xf;
+
+for s=1:3
+    t1= find(p.contigStates==s, 1, 'first');
+    t2= find(p.contigStates==s, 1, 'last');
+    signal=data(1:end,(Fs*(t1-1)+1:Fs*t2));
+    
+    x0=Energy(i_set).x0(:,s);
+    
+    % Look at Energy Trajectory- Distance over time
+    figure(1); clf
+    subplot(121); hold on
+    plot(d.data'+[1:size(d.data,1)]*1000);
+    vline(d.Fs*(t1-1)+1); vline(d.Fs*t2); axis tight
+    subplot(122); plot(signal'+[1:size(signal,1)]*1000);
+    axis tight; 
+    
+    figure(2)
+    imagesc(p.states) 
+    colormap(gca, cols([5,2,6],:)); set(gca, 'YTick', [], 'fontsize', 18)
+
+    figure(3)
+    imagesc(reshape(xf, 8, 8)); colorbar
+    title('avg final bandpower (preictal)'), caxis([0,.5])
+    
+    figure(4)
+    imagesc(reshape(x0, 8, 8)); colorbar; caxis([0,.5])
+    title(sprintf('avg bandpower ictal phase %d (%s %d)', s, d.ID, d.block))
+      
+    pause
+end
