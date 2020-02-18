@@ -7,11 +7,14 @@ State_metrics=struct();
 thresh=0.15;     % Threshold for transient/persistent mode selection
 dt=1;        %
 
-for i_set=1:length(Partitions)
-    fprintf('inds %d\n',i_set)
+% only compute for beta= 0.01
+pinds=find(strcmp({Partitions.beta}, '0_01'))
+
+for i_set=1:length(pinds)
+    fprintf('inds %d\n',pinds(i_set))
     clear skewness kurtosis % clear to avoid func. ambiguity
     
-    p= Partitions(i_set);
+    p= Partitions(pinds(i_set));
     % match ID
     netInd= strcmp(p.ID, {Network.ID}).*strcmp(p.type, {Network.type}); 
     Net=Network(find(netInd)); 
@@ -84,32 +87,18 @@ for i_set=1:length(Partitions)
        % Calculating signed clustering using Perugini's signed extension
        [C_pos,C_neg,Ctot_pos,Ctot_neg] = clustering_coef_wu_sign(pcm(:,:,t),3);
        clustering3(:,t)=C_pos; 
-       
-       
+           
        %%%%%%%%%%%%%%%%%%%%%%%%
        %%%  Eigenstructure  %%%
        %%%%%%%%%%%%%%%%%%%%%%%%
        %spreadEig(:,t)=eig(normA);
        
-       % Calculating strength as sum of pos and abs(neg)
-       [nPos,nNeg,vpos,vneg]=strengths_und_sign(pcm(:,:,t));
-       strength(:,t)=(nPos'-nNeg');
-       strengthPos(:,t)=nPos;
-       strengthNeg(:,t)=nNeg;
-       
-       % Calculating signed clustering using Perugini's signed extension
-       [C_pos,C_neg,Ctot_pos,Ctot_neg] = clustering_coef_wu_sign(pcm(:,:,t),3);
-       clustering3(:,t)=C_pos; 
-
-
    end
    
-   
-    
     % Define function to compute state averages, compute averages from
     % longest run of each state type though. 
-    st= Partitions(i_set).contigStates;
-    stAvg= @(metric)cell2mat(arrayfun(@(x)mean(metric(:,st==x),2),...
+    st= Partitions(pinds(i_set)).contigStates;
+    stAvg= @(metric)cell2mat(arrayfun(@(x)median(metric(:,st==x),2),...
         [1:3], 'UniformOutput', false)); 
     
     % Populate metric and state average structs
@@ -137,12 +126,12 @@ disp('done')
 % 
 % State_metrics=struct();
 % 
-% for i_set=1:nSets
-%     st= Partitions(i_set).contigStates;
+% for i_set=1:length(pinds)
+%     st= Partitions(pinds(i_set)).contigStates;
 %     stAvg= @(metric)cell2mat(arrayfun(@(x)median(metric(:,st==x),2),...
 %     [1:3], 'UniformOutput', false)); 
 % 
-%     Net= Networks(i_set);
+%     Net= Metric_matrices(i_set);
 %     
 %     % Initialize metric structs
 %     State_metrics(i_set).ID=Net.ID;    
