@@ -25,6 +25,8 @@ info= sprintf(['x0: mean bandpower',...
   
 %% Part 2: Find ideal trajectory u* and optimal energy for SOZs
 
+relax=0;
+
 for i_set=i_ict
     disp(i_set)
     
@@ -34,14 +36,14 @@ for i_set=i_ict
     
     for s=1:3  % iterate through states
     
-    A= EnergySOZ(i_set).repMats(:,:,s);  
-    A_s= A./(1+svds(A,1))-eye(N); 
-    
     x0= EnergySOZ(i_set).x0(:,s);
     xf= EnergySOZ(i_set).xf;
     
-     B= getSpreadControl(dataSets_clean(i_set).gridCoords, soz, sigma);
-    %B=relax*ones(length(x0),1); B(soz)=1; B=diag(B);
+    A= EnergySOZ(i_set).repMats(:,:,s);  
+    A_s= A./(1+svds(A,1))-eye(length(x0)); 
+    
+    %B= getSpreadControl(dataSets_clean(i_set).gridCoords, soz, sigma);
+    B=relax*ones(length(x0),1); B(soz)=1; B=diag(B);
     [nodeEnergySOZ, trajErr]= deal(zeros(length(t_traj), length(rho)));
     xOpt= zeros(length(t_traj), length(rho),length(soz));
     
@@ -80,7 +82,7 @@ for i_set=i_ict
 end 
 
 
-save('Data/EnergySOZ.mat', 'EnergySOZ', 't_traj', 'rho', 'info', 'sigma')
+save('Data/EnergySOZ_B1_zeros.mat', 'EnergySOZ', 't_traj', 'rho', 'info', 'relax')
 disp('Part 2 EnergySOZ Calc done')
 
 %% Part 3: Run SOZ permutation test using control parameters
@@ -95,7 +97,7 @@ percentRank = @(YourArray, TheProbes) reshape( mean( bsxfun(@le,...
 t_idx= 7; %power(10, linspace(-3, log10(5), 10)) %log10 distribution b/w 1-10
 rho_idx= 7; % log10 distribution b/w 1-30
 
-nperms= 1000; % Number of permutations to select from
+nperms= 100; % Number of permutations to select from
 
 for i_set=i_ict
     fprintf('Finding null for i_set %d...\n', i_set)
@@ -125,18 +127,19 @@ for i_set=i_ict
     
         %A_s= EnergySOZ(i_set).repMats(:,:,s);
         
-        A= Energy(i_set).repMats(:,:,s);  
-        A_s= A./(1+svds(A,1))-eye(N);  
-        
         x0= EnergySOZ(i_set).x0(:,s);
         xf= EnergySOZ(i_set).xf;
+        
+        A= Energy(i_set).repMats(:,:,s);  
+        A_s= A./(1+svds(A,1))-eye(length(x0));  
+        
         sozEnergy=EnergySOZ(i_set).(sprintf('s%dNodeEnergySOZ',s))(t_idx, rho_idx); 
         nodeEnergynull= zeros(1,nperms);
      
             try
             for nt=1:nperms % Get null distribution of energy
-                B= getSpreadControl(dataSets_clean(i_set).gridCoords, i_perm(nt,:), sigma);
-                %B=const*ones(length(x0),1); B(i_perm(nt,:))=1; B=diag(B);
+                %B= getSpreadControl(dataSets_clean(i_set).gridCoords, i_perm(nt,:), sigma);
+                B=const*ones(length(x0),1); B(i_perm(nt,:))=1; B=diag(B);
                 [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
                 nodeEnergynull(nt)=sum(vecnorm(B*U_opt').^2);             
             end
@@ -157,7 +160,7 @@ for i_set=i_ict
     end % end states loop
 end 
 
-%save('Data/EnergySOZ.mat', 'EnergySOZ', 't_idx', 'rho_idx', '-append')
+%save('Data/EnergySOZ_B1_zeros.mat', 'EnergySOZ', 't_idx', 'rho_idx', '-append')
 %disp('Part 3 EnergySOZ Calc done')
 
 %% Part 3.5: Quantify error percentiles for each patient and state
@@ -237,9 +240,9 @@ mn_err= [mean(err_stats_soz(t_opt, r_opt, :)),std(err_stats_soz(t_opt, r_opt, :)
 
 %% Visualize the SOZ signifcance level
 % for each metric
-nsoz=18; 
+nsoz=22; 
 
-cb=97.5; %confidence bound (percent)
+cb=95; %confidence bound (percent)
 
 %for j=[Inf]
     %load(sprintf('Data/EnergySOZ%d.mat', j));
@@ -266,7 +269,7 @@ hold on
 i_soz=~cellfun(@isempty,{EnergySOZ.SOZconfidence});
 
 imagesc(reshape([EnergySOZ.SOZconfidence],3,nsoz)');
-plot([1:3],(reshape([EnergySOZ.SOZconfidence],3,nsoz)'<=(100-cb)).*repmat([1:18]',1,3), '*', 'color', 'red')
+plot([1:3],(reshape([EnergySOZ.SOZconfidence],3,nsoz)'<=(100-cb)).*repmat([1:nsoz]',1,3), '*', 'color', 'red')
 yticks([1:nsoz])
 blk=cellfun(@num2str, {EnergySOZ(i_soz).block}', 'UniformOutput', false);
 yticklabels(strcat({EnergySOZ(i_soz).ID}', {' '}, blk));
@@ -308,9 +311,10 @@ disp('done')
 
 %% Spatial visual of node energies
 
+r_opt=7; t_opt=7;
 clf;
 cmap=colormap; 
-for i_set=2 %a
+for i_set=3 %a
     figure(1)
     clf; hold on
     if isempty(dataSets_clean(i_set).sozGrid)

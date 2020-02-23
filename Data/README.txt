@@ -4,7 +4,8 @@ Networks.mat  (11/20/19): All patients, networks generated from UEO clean data, 
 Partitions.mat (11/20/19): Partitions generated from Networks.mat, gamma = 0.5, beta=0.01
 Energy.mat (2/8/20): Energy with single-point control energy
 EnergySOZ.mat (2/8/20): Energy with SOZ as control points, using average bandpower across entire preictal period as a reference, input is gaussian, A_s is NOT normalized!
-EenrgySOZ_B1.mat (2/8/20): settings same as above, however B=1 at control points, 'relax' elsewhere along diagonal, A_s was normalized, 1000 permutations 
+EenrgySOZ_B1.mat (2/8/20): settings same as above, however B=1 at control points, 'relax=10^-5' elsewhere along diagonal, A_s was normalized, 1000 permutations 
+EenrgySOZ_B1.mat (2/19/20): settings same as above, B=1 at control points, 'relax=0' elsewhere along diagonal, A_s was normalized, 100 permutations 
 EnergySOZ_spread.mat (2/8/20): same as EnergySOZ_B1.mat, but used Gaussian Spread with parameter sigma, A_s was normalized, 1000 permutations
 
 
@@ -34,7 +35,7 @@ Energy.mat:
 - xf_z: xf after zscore across xf and original x0
 - t_traj: the vector of time horizons calculated
 - rho: the vector of rho values used
-NOTE: the following do not include i_ict for the 5 rmoved siezures in their computation.
+NOTE: the following do not include i_ict for the 5 removed siezures in their computation:
 - sxtrajErr: computation error for (i_driven node, i_traj, i_rho)
 - sxNodeEnergy: node Energy arranged as (i_driven node, i_traj, i_rho)
 - err_stats: compiled computational error across all i_ict subjects and states. 

@@ -72,12 +72,13 @@ i_preict=find(strcmp({Partitions.type},'preictal'));
 ctype='bonferroni';
 display= 'off'; %DON'T TOUCH!
 
-groupOn= true;
+groupOn= false;
 
 analysis=struct();
 diffs=struct();
+rnks=struct();
 glob=struct(); c_i_preict_glob=struct(); c_i_ict_glob=struct();
-metrics={'strength', 'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'optEnergy'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
+metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'optEnergy'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
 
 lstID=State_metrics(1).ID; ctr=1; 
 for i_set=1:nSets
@@ -91,24 +92,26 @@ for i_set=1:nSets
         
         % Skip patients without values for a specific metric
         if isempty(s.(metrics{i}))
-            eval(sprintf('glob.%s(i_set,:)=nan;', metrics{i})); 
+            glob.(metrics{i})(i_set,:)=nan; 
             continue
         end
         % Take care of metrics without nodal values
         if size(s.(metrics{i}),1)==1
             i_set
-            eval(sprintf('glob.%s(i_set,:)=s.%s(1:3);', metrics{i}, metrics{i})); 
+            glob.(metrics{i})(i_set,:)=s.(metrics{i})(1:3);
             continue
         end
             
         % Perform Friedman's analysis & post hoc (non parametric rank test)
-        eval(sprintf('[~,~,stats_%s]=friedman(s.%s(:,1:3),1,display);', metrics{i}, metrics{i}));
-        eval(sprintf('[c_%s,m_%s]= multcompare(stats_%s, ''ctype'', ctype, ''display'', display);', ...
+        [~,~,stats.(metrics{i})]=friedman(s.(metrics{i})(:,1:3),1,display);
+        eval(sprintf('[c_%s,m_%s]= multcompare(stats.%s, ''ctype'', ctype, ''display'', display);', ...
             metrics{i}, metrics{i}, metrics{i}));
         
         % Save P value, difference, and global network average
         eval(sprintf('analysis(i_set).%s=c_%s(:,6);',metrics{i}, metrics{i}));
-        eval(sprintf('diffs%s(i_set,:)=c_%s(:,4);', metrics{i}, metrics{i}));
+        eval(sprintf('diffs.%s(i_set,:)=c_%s(:,4);', metrics{i}, metrics{i}));
+        
+        [~, rnks.(metrics{i})(i_set,:)]=ismember(stats.(metrics{i}).meanranks,sort(stats.(metrics{i}).meanranks));
         % Save average of ZSCORED data
         eval(sprintf('glob.%s(i_set,:)=mean(s.%sZ(:,1:3));', metrics{i}, metrics{i}));
         
@@ -134,7 +137,7 @@ if groupOn
     for u=1:length(uns)
         inds=strcmp(cls, uns(u,:));
         for i=1:length(metrics)
-            eval(sprintf('grp_glob.%s(u,:)=mean(glob.%s(subinds(inds),1:3),1);', metrics{i}, metrics{i}))
+            grp_glob.(metrics{i})(u,:)=mean(glob.(metrics{i})(subinds(inds),1:3),1);
         end
     end
 
@@ -223,10 +226,9 @@ disp('done')
 %% Display results of Friedman's test individually
 
 ctr=1;
-alpha=.7; 
+alpha=.017; 
 
-metrics= {'optEnergy'} %{'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'}; % optEnergy'
-
+metrics= {'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'} % 'optEnergy'}
 
 for type=[i_ict', i_preict']
     figure(ctr)
@@ -235,45 +237,36 @@ for type=[i_ict', i_preict']
     
     % Get all metrics and 
     met=[];
-    diffs=[];
+
+    figure(ctr+10); clf;
     for m=1:length(metrics)
         ma=reshape([analysis(type).(metrics{m})],3, nSamp)'<alpha;
-        dma=diffsmodalCtrl(type,:).*ma;
-        met=[met, ma];
-        diffs=[diffs, dma]; 
+        
+        drnk=rnks.(metrics{m})(type,:);
+        
+        i_pp=[find(ma(:,1));find(ma(:,2));find(ma(:,3))]
+        pp=[drnk(ma(:,1),[2,1]); drnk(ma(:,2),[3,1]); drnk(ma(:,3),[3,2])]
+        ph=[repmat([2,1],sum(ma(:,1)),1);repmat([3,1],sum(ma(:,2)),1);repmat([3,2],sum(ma(:,3)),1)]
+        
+        plot(3.25*(m-1)+ph', ((2*i_pp)+(pp*.5))', 'black')
+                
+         figure(ctr+10)
+         hold on
+         plot(3.25*(m-1)+[(1:3),1], [drnk,drnk(:,1)]*.5+2*[1:nSamp]', 'color', 'black', 'lineWidth', .5)
+         X=repmat(3.25*(m-1)+[(1:3),1],nSamp,1)'; Y=([drnk,drnk(:,1)]*.5+2*[1:nSamp]')';
+         scatter(X(:), Y(:), 60, repmat(cols([(1:3),1],:),floor(numel(X)/4),1), 'filled')
+        
     end
+    
+    % Plot lines
+     figure(ctr+10)
+     xticks((2:3.25:nMeas*3.5-1)); xticklabels(metrics)
+     yticks((1:nSamp)*2+1); yticklabels(strcat({Metric_matrices(type).ID}', {' '}, blk));
 
-    clf; hold on;
-    colormap(gca,cols([9,1,2,3],:));
-    imagesc(met.*repmat([1:3],nSamp,nMeas))
+    if ctr==1, suptitle('ictal'), else; suptitle('preictal'); end
 
-    plot((diffs>0).*repmat((1:nMeas*3),nSamp,1),repmat((1:nSamp)',1,nMeas*3),'^','color', 'cyan')
-    plot((diffs<0).*repmat((1:nMeas*3),nSamp,1),repmat((1:nSamp)',1,nMeas*3),'v','color', 'white')
+     ctr= ctr+1
 
-    yticks([1:nSamp])
-    %yticklabels({Metric_matrices(type).block});
-    blk=cellfun(@num2str, {Metric_matrices(type).block}', 'UniformOutput', false);
-    yticklabels(strcat({Metric_matrices(type).ID}', {' '}, blk));
-    xticks([2:3:nMeas*3-1])
-    xticklabels(metrics)
-    set(gca,'TickLabelInterpreter','none')
-    stem(3*[1:nMeas]+.5,ones(1,nMeas)*size(met,1),...
-        'Marker', 'none', 'lineWidth', 0.5, 'color', 'black')
-    title({'Significant effect of seizure state on metric'})
-    if ctr==1
-        suptitle('ictal')
-    else; suptitle('preictal')
-    end
-    %'1-2, 1-3, 2-3'
-%     axis tight
-%     yyaxis right
-%     ylim([1,nSamp])
-%     yticks((1:nSamp))
-%     yticklabels({numSOZ(sz_pairs(:,1))'./numChannels(sz_pairs(:,1))'*100});
-%     yticklabels(sprintf('%d/%d\n', [numSOZ(i_ict)',numChannels(i_ict)']'))
-%     ylabel('#SOZ nodes/ # Channels')
-    xlim([0.5, Inf])
-    ctr= ctr+1
 end
 disp('done')
 
@@ -323,6 +316,8 @@ for type={'i_ict', 'i_preict'} %, 'i_null'
     fig_ctr= fig_ctr+2;
     suptitle(sprintf('%sal, alpha: %0.2f grouped: %s', type{1}(3:end),alpha, string(groupOn)))
 end
+
+% set(gcf, 'Position', [560   706   387   242])
 
 %% Is there a correlation between metrics?
 clf
@@ -442,13 +437,13 @@ end
     subplot(1,6,6); imagesc(log(xf)); title('xf');  caxis(cl)
 
 %% View Nodes and Values spatially  %%
-figure(1)
+figure(5)
 clf;
 metrics={'optEnergy'};
 cmap=colormap; 
-for i_set=1:39
+for i_set=1:34
     i_set
-    figure(1)
+    figure(5)
     clf; hold on
     if isempty(dataSets_clean(i_set).sozGrid)
         continue
@@ -501,7 +496,7 @@ end
 percentRank = @(YourArray, TheProbes) reshape( mean( bsxfun(@le,...
     YourArray(:), TheProbes(:).') ) * 100, size(TheProbes) );
 
-metrics={'aveCtrl','modalCtrl', 'tModalCtrl','pModalCtrl'}
+metrics={'aveCtrl','modalCtrl', 'tModalCtrl','pModalCtrl', 'optEnergy'}
 nperms=1000;  %number of 
  
 sozRanks=struct(); 
@@ -550,9 +545,10 @@ for i_set=i_ict
         for s=1:3
         % Difference between ictal and preictal phase
             %diffs=State_metrics(i_set).(m{1})(:,s)-State_metrics(i_set+39).(m{1})(:,1);
-            diffs=State_metrics(i_set).(m{1})(:,s); 
-            soz_diffs= diffs(soz);
-            dist_diffs=diffs(i_perm)';
+            
+            alldiffs=State_metrics(i_set).(m{1})(:,s); 
+            soz_diffs= alldiffs(soz);
+            dist_diffs=alldiffs(i_perm)';
 
             % Get absolute value of sum
             soz_diffs=mean(abs(soz_diffs),1); 
@@ -581,7 +577,7 @@ ptSOZ=cellfun(@sum, {dataSets_clean(1:end/2).sozGrid})>0;
 alpha=5; %.2/3*100/2;
 
 % for each metric
-metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'}
+metrics={'optEnergy'}
 figure(2); clf; 
 figure(3); clf;
 for m=1:length(metrics)
@@ -607,6 +603,13 @@ for m=1:length(metrics)
     blk=cellfun(@num2str, {Metric_matrices(ptSOZ).block}', 'UniformOutput', false);
     yticklabels(strcat({Metric_matrices(ptSOZ).ID}', {' '}, blk));
     title(metrics{m})
+    
+    sigs=double(reshape([sozRanks.(metrics{m})],3,length(pcnts)/3)'>=(100-alpha))+double(reshape([sozRanks.(metrics{m})],3,length(pcnts)/3)'<=alpha)
+    ids=find(ptSOZ)'; in=ids(logical(sigs(:,1))); out=ids(~logical(sigs(:,1)))
+    
+    [p,~,stats]=ranksum(cellfun(@sum,{dataSets_clean(in).sozGrid}), cellfun(@sum,{dataSets_clean(out).sozGrid}))
+
+
 end
 
 figure(2)
@@ -663,8 +666,8 @@ for i_set=i_ict
     for m=metrics
         for s=1:3
         % Difference between ictal and preictal phase
-            diffs=State_metrics(i_set).(m{1})(:,s)-State_metrics(i_set+39).(m{1})(:,1);
-            dist_diffs=diffs(i_perm)';
+            alldiffs=State_metrics(i_set).(m{1})(:,s)-State_metrics(i_set+39).(m{1})(:,1);
+            dist_diffs=alldiffs(i_perm)';
 
             % Get absolute value of sum
             dist_diffs=mean(abs(dist_diffs),1);
@@ -840,8 +843,15 @@ plot(exp(-1.2*x),'color', rgb_array(3,:))
 plot(exp(-1*x),'color', rgb_array(4,:))
 colormap(rgb_array([9,6,8,7,2,3,1,4,5]',:))
 
-
-
+% figure(11)
+% set(gcf, 'Position', [944   184   705   771])
+% saveas(gcf, 'FigsV3.3/controllability/subject_level_metrics_ictal.png')
+% saveas(gcf, 'FigsV3.3/controllability/subject_level_metrics_ictal.fig')
+% 
+% figure(12)
+% set(gcf, 'Position', [944   184   705   771])
+% saveas(gcf, 'FigsV3.3/controllability/subject_level_metrics_preictal.png')
+% saveas(gcf, 'FigsV3.3/controllability/subject_level_metrics_preictal.fig')
 
 
 

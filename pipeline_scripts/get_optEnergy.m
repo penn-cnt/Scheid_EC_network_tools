@@ -194,7 +194,7 @@ for i_set=i_ict
     toc
 end 
 
-save(fullfile(datafold, '/EnergyNEW.mat'), 'Energy', 't_traj', 'rho', 'freq_band', 'relax', 'info')
+%save(fullfile(datafold, '/Energy_zeros.mat'), 'Energy', 't_traj', 'rho', 'freq_band', 'relax', 'info')
 disp('Energy Calc done')
 
 %% Part 2.5: Quantify error percentile for each patient and state
@@ -217,7 +217,7 @@ for i_set=1:length(i_ict)
         dist_errs=squeeze(mean(Energy(i_ict(i_set)).(sprintf('s%Xopt_dist',s))));
         
         % Error percentile out of entire "parameter square" for as single phase
-       phaseRanks(:,:,s)=errs;  %percentRank(errs,errs);
+       phaseRanks(:,:,s)=percentRank(errs,errs); %errs
        err_stats(:,:,(i_set-1)*3+s)=errs;
        
        dist_phaseRanks(:,:,s)=dist_errs;  %percentRank(errs,errs);
@@ -233,7 +233,7 @@ dist_max_percentiles=max(dist_allRanks,[],3);
 
 figure(1)
 clf
-imagesc(percentRank(max_percentiles', max_percentiles'))
+imagesc(max_percentiles')%percentRank(max_percentiles', max_percentiles'))
 set(gca,'YDir','normal')
 caxis([0,100])
 title('maximum error percentile across all siezures and phases')
@@ -260,6 +260,8 @@ xtickangle(45);
 [pct_err, i_err]=min(max_percentiles, [], 'all', 'linear')
 [t_opt, r_opt]=ind2sub(size(max_percentiles), i_err)
 mn_err= [mean(err_stats(t_opt, r_opt, :)),std(err_stats(t_opt, r_opt, :))] 
+
+pctile_err= prctile(err_stats(t_opt, r_opt, :),[25 50 75]);
 
 %save(fullfile(datafold, '/Energy.mat'), 'err_stats', '-append')
 % saveas(gcf,'FigsV3.3/energy/energy_max_err_pcnt.png')
