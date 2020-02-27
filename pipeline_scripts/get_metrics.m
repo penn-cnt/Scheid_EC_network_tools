@@ -16,6 +16,7 @@ thresh=0.15;     % Threshold for transient/persistent mode selection
 dt=1;        %
 
 for i_set=1:nSets
+
     fprintf('inds %d\n',i_set)
     clear skewness kurtosis % clear to avoid func. ambiguity
     
@@ -129,8 +130,8 @@ end
 
 eval([Null,'Metric_matrices= metric_matrices']);
 eval([Null,'State_metrics= state_metrics']);
-save(sprintf('Data/%sMetric_matrices.mat', Null), sprintf('%sMetric_matrices', Null))
-save(sprintf('Data/%sState_metrics.mat', Null), sprintf('%sState_metrics', Null))
+% save(sprintf('Data/%sMetric_matrices.mat', Null), sprintf('%sMetric_matrices', Null))
+% save(sprintf('Data/%sState_metrics.mat', Null), sprintf('%sState_metrics', Null))
 
 disp('done')
 
@@ -138,7 +139,7 @@ disp('done')
 %% Correction for states
    metrics={'globalCtrl', 'aveCtrl', 'modalCtrl', 'pModalCtrl', 'tModalCtrl',...
        'strength', 'strengthPos', 'strengthNeg', ...        % Network metrics %
-       'skewness', 'kurtosis', 'degree', 'clustering3'}; 
+       'skewness', 'kurtosis', 'degree', 'clustering3', 'eigVals'}; 
 
 State_metrics=struct();
 

@@ -78,7 +78,7 @@ analysis=struct();
 diffs=struct();
 rnks=struct();
 glob=struct(); c_i_preict_glob=struct(); c_i_ict_glob=struct();
-metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'optEnergy'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
+metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl','eigVals'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
 
 lstID=State_metrics(1).ID; ctr=1; 
 for i_set=1:nSets
@@ -228,7 +228,7 @@ disp('done')
 ctr=1;
 alpha=.017; 
 
-metrics= {'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl'} % 'optEnergy'}
+metrics= {'eigVals'} % 'optEnergy'}
 
 for type=[i_ict', i_preict']
     figure(ctr)

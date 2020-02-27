@@ -1,6 +1,6 @@
 %% EC Controllability- V3 Pipeline
-dataFold='DataV3.2'
-cd('/Users/bscheid/Documents/LittLab/PROJECTS/p01_EC_controllability/v3/Code')
+dataFold='DataV4.1'
+cd('/Users/bscheid/Documents/LittLab/PROJECTS/p01_EC_controllability/Code')
 Null='';
 addpath('pipeline_scripts')
 addpath('helper_functions')

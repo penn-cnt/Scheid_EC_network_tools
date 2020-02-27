@@ -1,7 +1,7 @@
 % Initialize Project
-cd '/Users/bscheid/Documents/LittLab/PROJECTS/p01_EC_controllability/v3/Code'
+cd '/Users/bscheid/Documents/LittLab/PROJECTS/p01_EC_controllability/Code'
 
-datafold='Data';
+datafold='DataV4.1';
 addpath(genpath('~/Documents/CODE/'))
 addpath('helper_functions')
 addpath('pipeline_scripts')

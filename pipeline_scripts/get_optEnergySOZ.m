@@ -25,7 +25,8 @@ info= sprintf(['x0: mean bandpower',...
   
 %% Part 2: Find ideal trajectory u* and optimal energy for SOZs
 
-relax=0;
+relax=1;
+scale=10^5; 
 
 for i_set=i_ict
     disp(i_set)
@@ -44,6 +45,7 @@ for i_set=i_ict
     
     %B= getSpreadControl(dataSets_clean(i_set).gridCoords, soz, sigma);
     B=relax*ones(length(x0),1); B(soz)=1; B=diag(B);
+    R=scale*ones(length(x0),1); R(soz)=1; R=diag(R); 
     [nodeEnergySOZ, trajErr]= deal(zeros(length(t_traj), length(rho)));
     xOpt= zeros(length(t_traj), length(rho),length(soz));
     
@@ -55,7 +57,7 @@ for i_set=i_ict
             r= rho(i_rho); 
              %Calculate energy per node
             try   
-                [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
+                [X_opt, U_opt, n_err] = optim_fun_input_constrained(A_s, T, B, x0, xf, r, R, eye(length(A_s)));
                 nodeEnergySOZ(i_traj,i_rho)=sum(vecnorm(B*U_opt').^2);
                 trajErr(i_traj,i_rho)=n_err;
                 xOpt(i_traj, i_rho,:)=X_opt(end,1:length(soz))';
@@ -82,7 +84,7 @@ for i_set=i_ict
 end 
 
 
-save('Data/EnergySOZ_B1_zeros.mat', 'EnergySOZ', 't_traj', 'rho', 'info', 'relax')
+save('Data/EnergySOZ_V4_1.mat', 'EnergySOZ', 't_traj', 'rho', 'info', 'relax', 'scale')
 disp('Part 2 EnergySOZ Calc done')
 
 %% Part 3: Run SOZ permutation test using control parameters
@@ -139,8 +141,9 @@ for i_set=i_ict
             try
             for nt=1:nperms % Get null distribution of energy
                 %B= getSpreadControl(dataSets_clean(i_set).gridCoords, i_perm(nt,:), sigma);
-                B=const*ones(length(x0),1); B(i_perm(nt,:))=1; B=diag(B);
-                [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
+                B=relax*ones(length(x0),1); B(i_perm(nt,:))=1; B=diag(B);
+                R=scale*ones(length(x0),1); R(i_perm(nt,:))=1; R=diag(R); 
+                [X_opt, U_opt, n_err] = optim_fun_input_constrained(A_s, T, B, x0, xf, r, R, eye(length(A_s)));
                 nodeEnergynull(nt)=sum(vecnorm(B*U_opt').^2);             
             end
 
@@ -150,6 +153,7 @@ for i_set=i_ict
                 pause(0.2)
                 nodeEnergynull(nt)=nan(length(x0),1); 
             end
+            throw(ME)
             end %End try
             
     EnergySOZ(i_set).nodeEnergynull(:,s)=nodeEnergynull;
@@ -160,7 +164,7 @@ for i_set=i_ict
     end % end states loop
 end 
 
-%save('Data/EnergySOZ_B1_zeros.mat', 'EnergySOZ', 't_idx', 'rho_idx', '-append')
+%save('Data/EnergySOZ_V4_1.mat', 'EnergySOZ', 't_idx', 'rho_idx', '-append')
 %disp('Part 3 EnergySOZ Calc done')
 
 %% Part 3.5: Quantify error percentiles for each patient and state
@@ -247,11 +251,11 @@ cb=95; %confidence bound (percent)
 %for j=[Inf]
     %load(sprintf('Data/EnergySOZ%d.mat', j));
     
-figure(4)
+figure(4); clf
 pcnts=[EnergySOZ.SOZconfidence];
 %scatter(repmat([1:3],1,18)+normrnd(0,.05, [1,54]),  pcnts, 60, repmat(copper(18),3,1), 'filled')
 %scatter(repmat([1:3],1,nsoz)+normrnd(0,.05, [1,3*nsoz]),  pcnts, 25,'grey')
-scatter(repmat([1:3],1,nsoz)+repelem([1-nsoz:2:nsoz]/1e2, 3), pcnts, 20, 'filled','MarkerEdgeColor','black','MarkerFaceColor',[1,1,1]*.8)
+scatter(repmat([1:3],1,nsoz)+repelem([1-nsoz:2:nsoz]/1e2, 3), pcnts, 40, 'filled','MarkerEdgeColor','black','MarkerFaceColor',[1,1,1]*.8)
 
 %title(sprintf('Energy SOZ Permutation Test (all windows) significance',j))
 title('Energy SOZ Permutation Test significance')
@@ -261,7 +265,7 @@ xticks([1:3])
 xtickangle(20)
 hline(100-cb,'black:')
 
-hline(cb,'black:')
+%hline(cb,'black:')
 
 figure(5)
 hold on
@@ -277,7 +281,7 @@ xticklabels({'Phase1', 'Phase 2', 'Phase 3'})
 xticks([1:3])
 title('Energy SOZ Permutation Test significance')
 axis tight
-ylim([.5, 18.5])
+ylim([.5, nsoz+.5])
 set(gca, 'YDir', 'reverse')
 
 
@@ -314,7 +318,7 @@ disp('done')
 r_opt=7; t_opt=7;
 clf;
 cmap=colormap; 
-for i_set=3 %a
+for i_set=8 %a
     figure(1)
     clf; hold on
     if isempty(dataSets_clean(i_set).sozGrid)
@@ -357,7 +361,7 @@ for i_set=3 %a
             %caxis(clims)
             %set(gca, 'colorscale', 'log')
             %ylabel(metrics{m})
-            colormap(brewermap([],'PuBuGn'))
+            colormap(brewermap([],'*PuBuGn'))
             colorbar
             %if s==3; colorbar; end
       
@@ -375,7 +379,7 @@ clear energy
 t_idx=7;
 rho_idx=7;
 
-i_set=2 % i_ict
+i_set=8 % i_ict
     i_set
     % Select the values of t and rho that were determined previously
     T=EnergySOZ(i_set).t_traj(t_idx);
@@ -391,9 +395,11 @@ i_set=2 % i_ict
         x0= EnergySOZ(i_set).x0(:,s);
         
         B=relax*ones(length(x0),1); B(soz)=1; B=diag(B);
+        R=scale*ones(length(x0),1); R(i_perm(nt,:))=1; R=diag(R); 
+        
         %B= getSpreadControl(dataSets_clean(i_set).gridCoords, soz, sigma);
 
-        [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
+        [X_opt, U_opt, n_err] = optim_fun_input_constrained(A_s, T, B, x0, xf, r, R, eye(length(A_s)));
 %         nodeEnergySOZ(i_traj,i_rho)=sum(vecnorm(B*U_opt').^2);
         energy(i_set).X_opt(:,:,s)=X_opt;
         energy(i_set).U_opt(:,:,s)=U_opt';
@@ -438,7 +444,7 @@ end
 
 clf
 %% 3 Plot Results
-figure(1); clf; 
+figure(2); clf; 
  semilogy([1:size(xtraj,1)]/1000, xtraj(:,1), 'color', cols(1,:))
  hold on;
  semilogy([1:size(xtraj,1)]/1000, xtraj(:,2), 'color', cols(2,:))
@@ -451,7 +457,7 @@ xlim([-.01,t_traj(t_idx)+.01])
 box off
 
 
-figure(2); clf; hold on
+figure(1); clf; hold on
 plot([1:size(xtraj,1)]/1000, xtraj(:,1), 'color', cols(1,:))
 plot([1:size(xtraj,1)]/1000, xtraj(:,2), 'color', cols(2,:))
 plot([1:size(xtraj,1)]/1000, xtraj(:,3), 'color', cols(3,:))

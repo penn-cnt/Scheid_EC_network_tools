@@ -10,7 +10,7 @@ run('initProject.m')
 
 % x0_z and xf_z are calculated by taking the zscore of all x0s and xf. 
 
-%Energy=struct();
+Energy=struct();
 %load('Data/Energy.mat')
 
 %Frequency Bands
@@ -120,15 +120,16 @@ disp('done')
 %load('Data/Energy.mat')
 
 i_ict=find(strcmp({dataSets_clean.type},'ictal'));
-relax= 1e-5; % value along non-driven diagonals of "relaxed" B matrix
+relax= 1; % value along non-driven diagonals of "relaxed" B matrix
+scale= 10^5; % value along non-driven diagonals of "input penalty" R matrix
 
 % Energy Parameters to Test
 % On first pass, run with large parameter set to find best parameters
 tr= power(10, linspace(-2, log10(6), 10));
-t_traj= round([tr(1:7),(1:6)],3); %log10 distribution b/w 0-1, then linear 1-6
+t_traj= round([tr(1:7),(1:5)],3); %log10 distribution b/w 0-1, then linear 1-6
 rho= round([power(10, linspace(-2, 2, 10)), 110, 150],3); % log10 distribution b/w 1-30, rounded to 3 places
 
-for i_set=i_ict
+for i_set= i_ict(1:end)
     tic
     i_set
     Energy(i_set).t_traj=t_traj;
@@ -142,29 +143,35 @@ for i_set=i_ict
     A= Energy(i_set).repMats(:,:,s);  
     A_s= A./(1+svds(A,1))-eye(N);       % normalize representative matrix
     
-    [nodeEnergy, trajErr]= deal(zeros(length(x0),...
-        length(t_traj), length(rho)));
+%     [nodeEnergy, trajErr]= deal(zeros(length(x0),...
+%         length(t_traj), length(rho)));
+% 
+%     xOpt=zeros(length(x0),length(t_traj), length(rho));
 
-    xOpt=zeros(length(x0),length(t_traj), length(rho));
+    trajErr= Energy(i_set).(sprintf('s%dtrajErr',s));
+    nodeEnergy= Energy(i_set).(sprintf('s%dNodeEnergy',s));
+    xOpt = Energy(i_set).(sprintf('s%Xopt_dist',s));
     
-    for i_traj= 1:length(t_traj) % try different time horizons
-        
+    for i_traj= [4,5,9,10] %1:length(t_traj) % try different time horizons
+        i_traj
         T= t_traj(i_traj);
-        for i_rho=1:length(rho) % try different energy/distance tradeoffs
+        for i_rho= [6,7,8] % 1:length(rho) % try different energy/distance tradeoffs
             r= rho(i_rho);
             try
                 for n=1:length(x0) %Calculate energy per node
                     
                     B=relax*ones(length(x0),1); B(n)=1; B=diag(B); 
-                    [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
+                    R=scale*ones(length(x0),1); R(n)=1; R=diag(R); 
+                    [X_opt, U_opt, n_err] = optim_fun_input_constrained(A_s, T, B, x0, xf, r, R, eye(length(A_s)));
                     nodeEnergy(n,i_traj,i_rho)=sum(vecnorm(B*U_opt').^2);
                     trajErr(n, i_traj,i_rho)=n_err;
                     xOpt(n, i_traj, i_rho)=mean((X_opt(end,1:N)'-xf).^2);
                     
                     % Uncoment to view output
-%                     figure(1); imagesc(U_opt'); title('U'); 
-%                     figure(2); imagesc(B); title('B');
-%                     figure(3);
+%                     figure(12); imagesc(U_opt'); title('U'); 
+%                     figure(22); subplot(1,2,1); imagesc(B); title('B');
+%                                 subplot(1,2,2); imagesc(R); title('R');
+%                     figure(32);
 %                     subplot(1,6,[2:5]); imagesc([X_opt(:,1:N)'])% imagesc(X_opt(:,2:N)'); title('X');
 %                     subplot(1,6,[2:5]); imagesc([X_opt(1,1:N)',X_opt(end,1:N)'])
 %                     cl=caxis;
@@ -194,7 +201,7 @@ for i_set=i_ict
     toc
 end 
 
-%save(fullfile(datafold, '/Energy_zeros.mat'), 'Energy', 't_traj', 'rho', 'freq_band', 'relax', 'info')
+save(fullfile(datafold, '/Energy_V4_1.mat'), 'Energy', 't_traj', 'rho', 'freq_band', 'relax', 'info', 'scale')
 disp('Energy Calc done')
 
 %% Part 2.5: Quantify error percentile for each patient and state
