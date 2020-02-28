@@ -246,10 +246,7 @@ mn_err= [mean(err_stats_soz(t_opt, r_opt, :)),std(err_stats_soz(t_opt, r_opt, :)
 % for each metric
 nsoz=22; 
 
-cb=95; %confidence bound (percent)
-
-%for j=[Inf]
-    %load(sprintf('Data/EnergySOZ%d.mat', j));
+cb=97.5; %confidence bound (percent)
     
 figure(4); clf
 pcnts=[EnergySOZ.SOZconfidence];
@@ -285,7 +282,10 @@ ylim([.5, nsoz+.5])
 set(gca, 'YDir', 'reverse')
 
 
-%end
+% U-test of significance
+nsozs=cellfun(@sum, {dataSets_clean(i_ict).sozGrid});
+sigs= reshape([EnergySOZ.SOZconfidence],3,nsoz)'<=(100-cb)
+[pp, hh, stats]=ranksum(nsozs(sigs(:,1)), nsozs(~sigs(:,1)))
 
 %% Part 5: Add state EnergySOZ to State_Metrics
 
