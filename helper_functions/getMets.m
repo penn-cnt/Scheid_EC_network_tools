@@ -124,3 +124,9 @@ disp('done')
 
 end
 
+% Additional strength metrics:
+% for i_set=1:length(Metric_matrices)
+%     %Metric_matrices(i_set).strengthAbs=abs(Metric_matrices(i_set).strengthPos)+ abs(Metric_matrices(i_set).strengthNeg)
+%     %Metric_matrices(i_set).PosRatio=sum(Metric_matrices(i_set).strengthPos)./sum(Metric_matrices(i_set).strengthAbs)
+% end
+

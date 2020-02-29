@@ -1,6 +1,6 @@
 %% V3_analysis  data
 
-run('initProject.m')
+run('Code/initProject.m')
 
 % i_soz=true(1,39); i_soz(16)=false; i_soz= find(i_soz);
 
@@ -78,7 +78,7 @@ analysis=struct();
 diffs=struct();
 rnks=struct();
 glob=struct(); c_i_preict_glob=struct(); c_i_ict_glob=struct();
-metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl','eigVals'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
+metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength', 'optEnergy'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
 
 lstID=State_metrics(1).ID; ctr=1; 
 for i_set=1:nSets
@@ -104,12 +104,12 @@ for i_set=1:nSets
             
         % Perform Friedman's analysis & post hoc (non parametric rank test)
         [~,~,stats.(metrics{i})]=friedman(s.(metrics{i})(:,1:3),1,display);
-        eval(sprintf('[c_%s,m_%s]= multcompare(stats.%s, ''ctype'', ctype, ''display'', display);', ...
-            metrics{i}, metrics{i}, metrics{i}));
+        multcomp.(metrics{i})= multcompareBS(stats.(metrics{i}), 'ctype', ctype, 'display', display);
+        %multcomp.(metrics{i})= postHocSignedRank(s.(metrics{i})(:,1:3), 'ttest');
         
         % Save P value, difference, and global network average
-        eval(sprintf('analysis(i_set).%s=c_%s(:,6);',metrics{i}, metrics{i}));
-        eval(sprintf('diffs.%s(i_set,:)=c_%s(:,4);', metrics{i}, metrics{i}));
+        analysis(i_set).(metrics{i})=multcomp.(metrics{i})(:,6);
+        diffs.(metrics{i})(i_set,:)=multcomp.(metrics{i})(:,4);
         
         [~, rnks.(metrics{i})(i_set,:)]=ismember(stats.(metrics{i}).meanranks,sort(stats.(metrics{i}).meanranks));
         % Save average of ZSCORED data
@@ -155,45 +155,52 @@ for i=1:length(metrics)
     if contains(metrics{i}, 'SOZ')
         %SOZ
         % ictal 
-        eval(sprintf('[~,table1,stats_g%s]=friedman(glob.%s(i_soz,1:3),1,display);', metrics{i},  metrics{i}))
-        eval(['[c_i_ict_glob.',metrics{i},',m_ict_g',metrics{i},...
-            ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
+        [~,table1,stats_g.(metrics{i})]=friedman(glob.(metrics{i})(i_soz,1:3),1,display);
+        c_i_ict_glob.(metrics{i})= multcompareBS(stats_g.(metrics{i}),'ctype', ctype, 'display', display);
+        %c_i_ict_glob.(metrics{i})= postHocSignedRank(glob.(metrics{i})(i_soz,1:3));
+       
         %preictal
-        eval(sprintf('[~,~,stats_g%s]=friedman(glob.%s(i_soz+39,1:3),1,display);', metrics{i},  metrics{i}));
-        eval(['[c_i_preict_glob.',metrics{i},',m_ict_g',metrics{i},...
-            ']= multcompare(stats_g',metrics{i},', ''ctype'', ctype, ''display'', display);'])
+        [~,~,stats_g.(metrics{i})]=friedman(glob.(metrics{i})(i_soz+39,1:3),1,display);
+        c_i_preict_glob.metrics{i}= multcompareBS(stats_g.metrics{i},'ctype', ctype, 'display', display);
+       % c_i_ict_glob.(metrics{i})= postHocSignedRank(glob.(metrics{i})(i_soz+39,1:3));
+       
         continue 
         pause
     end
         
     if groupOn
         % Group Independent
+        
         % ictal 
         [~,tbl_ict,stats_gict]=friedman(grp_glob.(metrics{i})([1:n_gp],1:3),1,display);
-        eval(['[c_i_ict_glob.',metrics{i},',m_ict_g',metrics{i},...
-            ']= multcompare(stats_gict,''ctype'', ctype, ''display'', display);'])
+        c_i_ict_glob.(metrics{i})= multcompareBS(stats_gict,'ctype', ctype, 'display', display);
+        %c_i_ict_glob.(metrics{i})= postHocSignedRank(grp_glob.(metrics{i})([1:n_gp],1:3));
+        
         %preictal
         [~,tbl_preict,stats_gpreict]=friedman(grp_glob.(metrics{i})([1:n_gp]+n_gp,1:3),1,display);
-        eval(['[c_i_preict_glob.',metrics{i},',m_ict_g',metrics{i},...
-            ']= multcompare(stats_gpreict,''ctype'', ctype, ''display'', display);'])
+        c_i_preict_glob.(metrics{i})= multcompareBS(stats_gpreict,'ctype', ctype, 'display', display);
+        %c_i_preict_glob.(metrics{i})= postHocSignedRank(grp_glob.(metrics{i})([1:n_gp]+n_gp,1:3));
     else
         % ictal 
         [~,tbl_ict,stats_gict]=friedman(glob.(metrics{i})(i_ict,1:3),1,display);
-        eval(['[c_i_ict_glob.',metrics{i},',m_ict_g',metrics{i},...
-            ']= multcompare(stats_gict,''ctype'', ctype, ''display'', display);'])
+        c_i_ict_glob.(metrics{i})=multcompareBS(stats_gict,'ctype', ctype, 'display', display);  
+%       c_i_ict_glob.(metrics{i})= postHocSignedRank(glob.(metrics{i})(i_ict,1:3), 'ttest');
+                
+        
         %preictal
         [~,tbl_preict,stats_gpreict]=friedman(glob.(metrics{i})(i_preict,1:3),1,display);
-            eval(['[c_i_preict_glob.',metrics{i},',m_ict_g',metrics{i},...
-            ']= multcompare(stats_gpreict,''ctype'', ctype, ''display'', display);'])
+        c_i_preict_glob.(metrics{i})= multcompareBS(stats_gpreict,'ctype', ctype, 'display', display);       
+%       c_i_preict_glob.(metrics{i})= postHocSignedRank(glob.(metrics{i})(i_preict,1:3), 'ttest');
+        
     end
     
     % Write results to table
     writecell({['ictal ', metrics{i}, ' groupOn: ', string(groupOn)]},...
-        'Data/resultsTable.xlsx', 'Sheet', 'Grp Metrics', 'Range', sprintf('L%d', xl_ptr));
+        [datafold, '/resultsTable.xlsx'], 'Sheet', 'Grp Metrics', 'Range', sprintf('L%d', xl_ptr));
     writecell({['preictal ', metrics{i},' groupOn: ', string(groupOn)]},...
-        'Data/resultsTable.xlsx', 'Sheet', 'Grp Metrics', 'Range', sprintf('R%d', xl_ptr)); xl_ptr=xl_ptr+1; 
-    writematrix(c_i_ict_glob.(metrics{i}),'Data/resultsTable.xlsx','Sheet','Grp Metrics','Range', sprintf('L%d:Q%d', xl_ptr, xl_ptr+3));   
-    writematrix(c_i_preict_glob.(metrics{i}),'Data/resultsTable.xlsx','Sheet','Grp Metrics','Range', sprintf('R%d:W%d', xl_ptr, xl_ptr+3)); 
+        [datafold, '/resultsTable.xlsx'], 'Sheet', 'Grp Metrics', 'Range', sprintf('S%d', xl_ptr)); xl_ptr=xl_ptr+1; 
+    writematrix(c_i_ict_glob.(metrics{i}),[datafold, '/resultsTable.xlsx'],'Sheet','Grp Metrics','Range', sprintf('L%d:R%d', xl_ptr, xl_ptr+3));   
+    writematrix(c_i_preict_glob.(metrics{i}),[datafold, '/resultsTable.xlsx'],'Sheet','Grp Metrics','Range', sprintf('S%d:Y%d', xl_ptr, xl_ptr+3)); 
     xl_ptr=xl_ptr+4; 
     
     stats_ict(i,:)= [tbl_ict{2,3},tbl_ict{2,5},stats_gict.n, tbl_ict{2,6}];
@@ -207,16 +214,16 @@ statTbl_ict= array2table(stats_ict, 'VariableNames', {'df','chi2', 'n', 'pval'})
 statTbl_preict= array2table(stats_preict, 'VariableNames', {'df','chi2', 'n', 'pval'})
 
 if groupOn
-    writecell({datestr(now()), 'GroupLevel_metrics-grouped by subject'}, 'Data/resultsTable.xlsx', 'Sheet', 'Grp Metrics', 'Range', 'F1:G2');
-    writetable([table(metrics', 'VariableNames', {'Ictal_Metrics'}),statTbl_ict],'Data/resultsTable.xlsx', ...
+    writecell({datestr(now()), 'GroupLevel_metrics-grouped by subject'}, [datafold, '/resultsTable.xlsx'], 'Sheet', 'Grp Metrics', 'Range', 'F1:G2');
+    writetable([table(metrics', 'VariableNames', {'Ictal_Metrics'}),statTbl_ict],[datafold, '/resultsTable.xlsx'], ...
         'Sheet', 'Grp Metrics', 'Range', sprintf('F3:L%d',height(statTbl_ict)+10))
-    writetable([table(metrics', 'VariableNames', {'Preictal_Metrics'}), statTbl_preict],'Data/resultsTable.xlsx', ...
+    writetable([table(metrics', 'VariableNames', {'Preictal_Metrics'}), statTbl_preict],[datafold, '/resultsTable.xlsx'], ...
         'Sheet', 'Grp Metrics', 'Range', sprintf('F%d:L%d',height(statTbl_ict)+4,4+2*height(statTbl_ict)))
 else
-    writecell({datestr(now()), 'GroupLevel_metrics- sz indep.'}, 'Data/resultsTable.xlsx', 'Sheet', 'Grp Metrics', 'Range', 'A1:B2');
-    writetable([table(metrics', 'VariableNames', {'Ictal_Metrics'}), statTbl_ict],'Data/resultsTable.xlsx', ...
+    writecell({datestr(now()), 'GroupLevel_metrics- sz indep.'}, [datafold, '/resultsTable.xlsx'], 'Sheet', 'Grp Metrics', 'Range', 'A1:B2');
+    writetable([table(metrics', 'VariableNames', {'Ictal_Metrics'}), statTbl_ict],[datafold, '/resultsTable.xlsx'], ...
         'Sheet', 'Grp Metrics', 'Range', sprintf('A3:E%d',height(statTbl_ict)+10))
-    writetable([table(metrics', 'VariableNames', {'Preictal_Metrics'}), statTbl_preict],'Data/resultsTable.xlsx', ...
+    writetable([table(metrics', 'VariableNames', {'Preictal_Metrics'}), statTbl_preict],[datafold, '/resultsTable.xlsx'], ...
         'Sheet', 'Grp Metrics', 'Range', sprintf('A%d:E%d',height(statTbl_ict)+4,4+2*height(statTbl_ict)))
 end
 
@@ -225,20 +232,20 @@ disp('done')
 
 %% Display results of Friedman's test individually
 
-ctr=1;
+ctr=0;
 alpha=.017; 
 
-metrics= {'eigVals'} % 'optEnergy'}
+metrics= {'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl', 'strength'} % 'optEnergy'}
 
 for type=[i_ict', i_preict']
-    figure(ctr)
+    figure(ctr+1)
     nMeas=length(metrics);   % number of measures
     nSamp=length([analysis(type).modalCtrl]);
     
     % Get all metrics and 
     met=[];
 
-    figure(ctr+10); clf;
+    figure(ctr+1); clf;
     for m=1:length(metrics)
         ma=reshape([analysis(type).(metrics{m})],3, nSamp)'<alpha;
         
@@ -250,7 +257,7 @@ for type=[i_ict', i_preict']
         
         plot(3.25*(m-1)+ph', ((2*i_pp)+(pp*.5))', 'black')
                 
-         figure(ctr+10)
+         figure(ctr+1)
          hold on
          plot(3.25*(m-1)+[(1:3),1], [drnk,drnk(:,1)]*.5+2*[1:nSamp]', 'color', 'black', 'lineWidth', .5)
          X=repmat(3.25*(m-1)+[(1:3),1],nSamp,1)'; Y=([drnk,drnk(:,1)]*.5+2*[1:nSamp]')';
@@ -259,13 +266,16 @@ for type=[i_ict', i_preict']
     end
     
     % Plot lines
-     figure(ctr+10)
+     figure(ctr+1)
+     blk=cellfun(@num2str, {Metric_matrices(type).block}', 'UniformOutput', false);
      xticks((2:3.25:nMeas*3.5-1)); xticklabels(metrics)
      yticks((1:nSamp)*2+1); yticklabels(strcat({Metric_matrices(type).ID}', {' '}, blk));
-
-    if ctr==1, suptitle('ictal'), else; suptitle('preictal'); end
+     xlim([0,nMeas*3.5-.5])
 
      ctr= ctr+1
+    if ctr==1, suptitle('ictal'), else; suptitle('preictal'); end
+
+     
 
 end
 disp('done')
@@ -275,9 +285,9 @@ disp('done')
 % Boxplot visualization of group level trends using Friedman's test. 
 
 fig_ctr=6;
-alpha=0.05;
+alpha=0.016;
 
-metrics= {'optEnergy'}'; %{'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
+metrics= {'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
 
 %metrics={'optEnergySOZ'}
 for type={'i_ict', 'i_preict'} %, 'i_null'
@@ -314,7 +324,7 @@ for type={'i_ict', 'i_preict'} %, 'i_null'
         %ylim([min(eval(['glob.',metrics{i},'(:)']))*1.1, max(eval(['glob.',metrics{i},'(:)'])*1.2)])
     end
     fig_ctr= fig_ctr+2;
-    suptitle(sprintf('%sal, alpha: %0.2f grouped: %s', type{1}(3:end),alpha, string(groupOn)))
+    suptitle(sprintf('%sal, alpha: %0.3f grouped: %s', type{1}(3:end),alpha, string(groupOn)))
 end
 
 % set(gcf, 'Position', [560   706   387   242])
@@ -695,6 +705,14 @@ for i_set=i_ict
 end
 disp('done with sozRanks calculation')
 
+%% Strength percentages
+
+pp=cell2mat({State_metrics.PosRatio}')
+boxplot(pp, {'Phase 1', 'Phase 2', 'Phase 3'}, 'Colors', cols(1:3,:), 'Symbol', 'x')
+
+
+
+%
 %% NOT USED: Fit a Linear Mixed model to metrics
 
 % Get table with (ID, Phase, Metric)

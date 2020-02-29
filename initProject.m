@@ -1,15 +1,15 @@
 % Initialize Project
-cd '/Users/bscheid/Documents/LittLab/PROJECTS/p01_EC_controllability/Code'
+cd '/Users/bscheid/Documents/LittLab/PROJECTS/p01_EC_controllability'
 
-datafold='DataV4.1';
+datafold='v4/DataV4.1';
 addpath(genpath('~/Documents/CODE/'))
-addpath('helper_functions')
-addpath('pipeline_scripts')
+addpath('Code/helper_functions')
+addpath('Code/pipeline_scripts')
 
 if ~exist('dataSets_clean', 'var')
     load([datafold,'/dataSets_clean.mat'])
 end
-load(sprintf('%s/subjects.mat', 'DataV3.2'));
+load(sprintf('v3/%s/subjects.mat', 'DataV3.2'));
 load([datafold,'/Partitions.mat'])
 load([datafold,'/Networks.mat'])
 load([datafold,'/State_metrics.mat'])

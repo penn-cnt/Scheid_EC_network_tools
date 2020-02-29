@@ -139,7 +139,7 @@ disp('done')
 %% Correction for states
    metrics={'globalCtrl', 'aveCtrl', 'modalCtrl', 'pModalCtrl', 'tModalCtrl',...
        'strength', 'strengthPos', 'strengthNeg', ...        % Network metrics %
-       'skewness', 'kurtosis', 'degree', 'clustering3', 'eigVals'}; 
+       'skewness', 'kurtosis', 'degree', 'clustering3', 'eigVals', 'strengthAbs', 'PosRatio'}; 
 
 State_metrics=struct();
 
