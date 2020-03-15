@@ -64,6 +64,21 @@ writetable(stateTable,'Data/resultsTable.xlsx', 'Range', 'A3:H6')
 clear mn_len mn_med mn_lenpi mn_medpi labels x_ict y_ict x_preict y_preict meds_preict lens_preict ...
     meds_ict lens_ict
 
+% How many windows are not assigned?
+
+aa=cellfun(@(x) sum(x==0), {Partitions.contigStates});
+lll=cellfun(@length, {Partitions.contigStates});
+mean(aa(1:34)./lll(1:34))*100 % avg % of unassigned windows
+median(aa(1:34)./lll(1:34))*100 
+iqr(aa(1:34)./lll(1:34))*100 % iqr % of unassigned windows
+
+% How many phases did you have to truncate?
+
+contigs={Partitions.contigStates}; alls={Partitions.states};
+cnt=arrayfun(@(x) unique(alls{x}(contigs{x} ~= alls{x})), [1:39], 'UniformOutput', false);
+length(cell2mat(cnt))/(39*3) % Percentage of phases that were split up. 
+
+
 %% Friedmans- Is there a difference between states? (creates glob,c_i_preict_glob, i_ict_glob)
 
 i_ict=find(strcmp({Partitions.type},'ictal'));
@@ -78,7 +93,7 @@ analysis=struct();
 diffs=struct();
 rnks=struct();
 glob=struct(); c_i_preict_glob=struct(); c_i_ict_glob=struct();
-metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength', 'optEnergy'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
+metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength'};% 'optEnergy', 'PosRatio'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
 
 lstID=State_metrics(1).ID; ctr=1; 
 for i_set=1:nSets

@@ -395,7 +395,8 @@ i_set=8 % i_ict
         x0= EnergySOZ(i_set).x0(:,s);
         
         B=relax*ones(length(x0),1); B(soz)=1; B=diag(B);
-        R=scale*ones(length(x0),1); R(i_perm(nt,:))=1; R=diag(R); 
+        R=scale*ones(length(x0),1); R(soz)=1; R=diag(R); 
+       % R=scale*ones(length(x0),1); R(i_perm(nt,:))=1; R=diag(R); 
         
         %B= getSpreadControl(dataSets_clean(i_set).gridCoords, soz, sigma);
 
