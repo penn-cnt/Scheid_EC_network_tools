@@ -161,8 +161,8 @@ for i_set= i_ict(1:end)
                 for n=1:length(x0) %Calculate energy per node
                     
                     B=relax*ones(length(x0),1); B(n)=1; B=diag(B); 
-                    nodeEnergy(n,i_traj,i_rho)=sum(vecnorm(B*U_opt').^2);
                     [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
+                    nodeEnergy(n,i_traj,i_rho)=sum(vecnorm(U_opt').^2);
                     trajErr(n, i_traj,i_rho)=n_err;
                     xOpt(n, i_traj, i_rho)=mean((X_opt(end,1:N)'-xf).^2);
                     
@@ -200,7 +200,7 @@ for i_set= i_ict(1:end)
     toc
 end 
 
-save(fullfile(datafold, '/Energy_V4_1.mat'), 'Energy', 't_traj', 'rho', 'freq_band', 'relax', 'info', 'scale')
+save(fullfile('v4/DataV4.2/Energy.mat'), 'Energy', 't_traj', 'rho', 'freq_band', 'relax', 'info')
 disp('Energy Calc done')
 
 %% Part 2.5: Quantify error percentile for each patient and state

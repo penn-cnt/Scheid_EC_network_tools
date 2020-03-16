@@ -18,6 +18,7 @@ fldnames=fieldnames(Energy);
 EnergySOZ= rmfield(Energy, fldnames(~ismember(fldnames,...
     {'ID', 'type', 'block', 'x0','repMats', 'xf', 'x0_z', 'xf_z','t_traj', 'rho'})));
 
+relax=10^-7; % input control energy off diagonal relaxation
 info= sprintf(['x0: mean bandpower',...
       'xf: preict state, ', ...
       'B: 1 at soz, off diagonal relaxed by %0.1d'],relax);
@@ -53,8 +54,8 @@ for i_set=i_ict
             r= rho(i_rho); 
              %Calculate energy per node
             try   
-                nodeEnergySOZ(i_traj,i_rho)=sum(vecnorm(B*U_opt').^2);
                 [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
+                nodeEnergySOZ(i_traj,i_rho)=sum(vecnorm(U_opt').^2);
                 trajErr(i_traj,i_rho)=n_err;
                 xOpt(i_traj, i_rho,:)=X_opt(end,1:length(soz))';
             catch ME
@@ -80,7 +81,7 @@ for i_set=i_ict
 end 
 
 
-save('Data/EnergySOZ_V4_1.mat', 'EnergySOZ', 't_traj', 'rho', 'info', 'relax', 'scale')
+save('v4/DataV4.2/EnergySOZ_relax-7.mat', 'EnergySOZ', 't_traj', 'rho', 'info', 'relax')
 disp('Part 2 EnergySOZ Calc done')
 
 %% Part 3: Run SOZ permutation test using control parameters
@@ -138,9 +139,9 @@ for i_set=i_ict
             for nt=1:nperms % Get null distribution of energy
                 %B= getSpreadControl(dataSets_clean(i_set).gridCoords, i_perm(nt,:), sigma);
                 B=relax*ones(length(x0),1); B(i_perm(nt,:))=1; B=diag(B);
-                R=scale*ones(length(x0),1); R(i_perm(nt,:))=1; R=diag(R); 
-                [X_opt, U_opt, n_err] = optim_fun_input_constrained(A_s, T, B, x0, xf, r, R, eye(length(A_s)));
-                nodeEnergynull(nt)=sum(vecnorm(B*U_opt').^2);             
+                %R=scale*ones(length(x0),1); R(i_perm(nt,:))=1; R=diag(R); 
+                [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
+                nodeEnergynull(nt)=sum(vecnorm(U_opt').^2);             
             end
 
         catch ME
@@ -160,7 +161,7 @@ for i_set=i_ict
     end % end states loop
 end 
 
-%save('Data/EnergySOZ_V4_1.mat', 'EnergySOZ', 't_idx', 'rho_idx', '-append')
+save('v4/DataV4.2/EnergySOZ_relax-7.mat', 'EnergySOZ', 't_idx', 'rho_idx', '-append')
 %disp('Part 3 EnergySOZ Calc done')
 
 %% Part 3.5: Quantify error percentiles for each patient and state
@@ -397,7 +398,7 @@ i_set=8 % i_ict
         %B= getSpreadControl(dataSets_clean(i_set).gridCoords, soz, sigma);
 
         [X_opt, U_opt, n_err] = optim_fun_input_constrained(A_s, T, B, x0, xf, r, R, eye(length(A_s)));
-%         nodeEnergySOZ(i_traj,i_rho)=sum(vecnorm(B*U_opt').^2);
+%         nodeEnergySOZ(i_traj,i_rho)=sum(vecnorm(U_opt').^2);
         energy(i_set).X_opt(:,:,s)=X_opt;
         energy(i_set).U_opt(:,:,s)=U_opt';
         energy(i_set).n_err(:,:,s)=n_err;
@@ -434,9 +435,9 @@ plot(xtraj)
 plot(mean(energy(i_set).U_opt(:,:,3)))
 xtraj=zeros(size(energy(i_set).X_opt,1),3);
 for j=1:size(energy(i_set).U_opt,2)
-    xtraj(j,1)=norm(B*energy(i_set).U_opt(:,j,1));
-    xtraj(j,2)=norm(B*energy(i_set).U_opt(:,j,2));
-    xtraj(j,3)=norm(B*energy(i_set).U_opt(:,j,3));
+    xtraj(j,1)=norm(energy(i_set).U_opt(:,j,1));
+    xtraj(j,2)=norm(energy(i_set).U_opt(:,j,2));
+    xtraj(j,3)=norm(energy(i_set).U_opt(:,j,3));
 end
 
 clf
