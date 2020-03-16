@@ -25,7 +25,7 @@ i_ict=find(strcmp({dataSets_clean.type},'ictal'));
 
 info=['x0: mean bandpower across all windows in phase',...
       'xf: preict. bandpower', ...
-      'B: single node, 1e-5 along diag'];
+      'B: single node, 1e-7 along diag'];
 
 for i_set= i_ict % Note, should only iterate over ictal sets. 
     Net= Networks(i_set);
@@ -120,8 +120,8 @@ disp('done')
 %load('Data/Energy.mat')
 
 i_ict=find(strcmp({dataSets_clean.type},'ictal'));
-relax= 1; % value along non-driven diagonals of "relaxed" B matrix
-scale= 10^5; % value along non-driven diagonals of "input penalty" R matrix
+relax= 10^-7; % value along non-driven diagonals of "relaxed" B matrix
+%scale= 10^7; % value along non-driven diagonals of "input penalty" R matrix
 
 % Energy Parameters to Test
 % On first pass, run with large parameter set to find best parameters
@@ -143,27 +143,26 @@ for i_set= i_ict(1:end)
     A= Energy(i_set).repMats(:,:,s);  
     A_s= A./(1+svds(A,1))-eye(N);       % normalize representative matrix
     
-%     [nodeEnergy, trajErr]= deal(zeros(length(x0),...
-%         length(t_traj), length(rho)));
-% 
-%     xOpt=zeros(length(x0),length(t_traj), length(rho));
+    [nodeEnergy, trajErr]= deal(zeros(length(x0),...
+        length(t_traj), length(rho)));
 
-    trajErr= Energy(i_set).(sprintf('s%dtrajErr',s));
-    nodeEnergy= Energy(i_set).(sprintf('s%dNodeEnergy',s));
-    xOpt = Energy(i_set).(sprintf('s%Xopt_dist',s));
+    xOpt=zeros(length(x0),length(t_traj), length(rho));
+
+%     trajErr= Energy(i_set).(sprintf('s%dtrajErr',s));
+%     nodeEnergy= Energy(i_set).(sprintf('s%dNodeEnergy',s));
+%     xOpt = Energy(i_set).(sprintf('s%Xopt_dist',s));
     
-    for i_traj= [4,5,9,10] %1:length(t_traj) % try different time horizons
+    for i_traj= 1:length(t_traj) % try different time horizons
         i_traj
         T= t_traj(i_traj);
-        for i_rho= [6,7,8] % 1:length(rho) % try different energy/distance tradeoffs
+        for i_rho= 1:length(rho) % try different energy/distance tradeoffs
             r= rho(i_rho);
             try
                 for n=1:length(x0) %Calculate energy per node
                     
                     B=relax*ones(length(x0),1); B(n)=1; B=diag(B); 
-                    R=scale*ones(length(x0),1); R(n)=1; R=diag(R); 
-                    [X_opt, U_opt, n_err] = optim_fun_input_constrained(A_s, T, B, x0, xf, r, R, eye(length(A_s)));
                     nodeEnergy(n,i_traj,i_rho)=sum(vecnorm(B*U_opt').^2);
+                    [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
                     trajErr(n, i_traj,i_rho)=n_err;
                     xOpt(n, i_traj, i_rho)=mean((X_opt(end,1:N)'-xf).^2);
                     

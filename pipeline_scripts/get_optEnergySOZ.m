@@ -1,6 +1,6 @@
 %% optEnergySOZ SOZ permutation test
 
-run('initProject.m')
+run('Code/initProject.m')
 % Note, get_optEnergy.m must be completed first. This will ensure consistency
 % between xf, x0 and representative connectivity matrices.
 
@@ -18,15 +18,11 @@ fldnames=fieldnames(Energy);
 EnergySOZ= rmfield(Energy, fldnames(~ismember(fldnames,...
     {'ID', 'type', 'block', 'x0','repMats', 'xf', 'x0_z', 'xf_z','t_traj', 'rho'})));
 
-sigma=1.6332; % input control energy spread
 info= sprintf(['x0: mean bandpower',...
       'xf: preict state, ', ...
-      'B: spread with sigma %0.04f'],sigma);
+      'B: 1 at soz, off diagonal relaxed by %0.1d'],relax);
   
 %% Part 2: Find ideal trajectory u* and optimal energy for SOZs
-
-relax=1;
-scale=10^5; 
 
 for i_set=i_ict
     disp(i_set)
@@ -45,7 +41,7 @@ for i_set=i_ict
     
     %B= getSpreadControl(dataSets_clean(i_set).gridCoords, soz, sigma);
     B=relax*ones(length(x0),1); B(soz)=1; B=diag(B);
-    R=scale*ones(length(x0),1); R(soz)=1; R=diag(R); 
+   
     [nodeEnergySOZ, trajErr]= deal(zeros(length(t_traj), length(rho)));
     xOpt= zeros(length(t_traj), length(rho),length(soz));
     
@@ -57,8 +53,8 @@ for i_set=i_ict
             r= rho(i_rho); 
              %Calculate energy per node
             try   
-                [X_opt, U_opt, n_err] = optim_fun_input_constrained(A_s, T, B, x0, xf, r, R, eye(length(A_s)));
                 nodeEnergySOZ(i_traj,i_rho)=sum(vecnorm(B*U_opt').^2);
+                [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
                 trajErr(i_traj,i_rho)=n_err;
                 xOpt(i_traj, i_rho,:)=X_opt(end,1:length(soz))';
             catch ME

@@ -33,4 +33,6 @@ cols=[[227,187,187]; [190,8,4]; [138,4,4];[140,42,195];[75,184,166];[242,224,43]
 
 wSim='wSim_0_01'; % default sim network. 
 
+datafold='v4/DataV4.2'; % change datafold for saving data. 
+
 
