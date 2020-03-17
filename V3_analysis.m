@@ -78,7 +78,6 @@ contigs={Partitions.contigStates}; alls={Partitions.states};
 cnt=arrayfun(@(x) unique(alls{x}(contigs{x} ~= alls{x})), [1:39], 'UniformOutput', false);
 length(cell2mat(cnt))/(39*3) % Percentage of phases that were split up. 
 
-
 %% Friedmans- Is there a difference between states? (creates glob,c_i_preict_glob, i_ict_glob)
 
 i_ict=find(strcmp({Partitions.type},'ictal'));
@@ -93,7 +92,7 @@ analysis=struct();
 diffs=struct();
 rnks=struct();
 glob=struct(); c_i_preict_glob=struct(); c_i_ict_glob=struct();
-metrics={'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength'};% 'optEnergy', 'PosRatio'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
+metrics={'optEnergy'}%, 'aveCtrl', 'modalCtrl', 'tModalCtrl','pModalCtrl', 'strength'};% 'optEnergy', 'PosRatio'}; %'strength', 'clustering3', 'optEnergy', 'kurtosis', 'skewness'};
 
 lstID=State_metrics(1).ID; ctr=1; 
 for i_set=1:nSets
@@ -250,7 +249,7 @@ disp('done')
 ctr=0;
 alpha=.017; 
 
-metrics= {'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl', 'strength'} % 'optEnergy'}
+metrics= {'optEnergy'}%'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl', 'strength'} % 'optEnergy'}
 
 for type=[i_ict', i_preict']
     figure(ctr+1)
@@ -299,10 +298,10 @@ disp('done')
 % 
 % Boxplot visualization of group level trends using Friedman's test. 
 
-fig_ctr=6;
+fig_ctr=1;
 alpha=0.016;
 
-metrics= {'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
+metrics= {'optEnergy'} %'aveCtrl', 'modalCtrl', 'tModalCtrl', 'pModalCtrl'};
 
 %metrics={'optEnergySOZ'}
 for type={'i_ict', 'i_preict'} %, 'i_null'

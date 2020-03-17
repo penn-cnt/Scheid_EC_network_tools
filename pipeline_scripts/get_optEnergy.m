@@ -21,6 +21,7 @@ high_g=[95,105];
 
 freq_band= high_g;
 i_ict=find(strcmp({dataSets_clean.type},'ictal'));
+relax= 10^-7; 
 
 
 info=['x0: mean bandpower across all windows in phase',...
@@ -120,7 +121,7 @@ disp('done')
 %load('Data/Energy.mat')
 
 i_ict=find(strcmp({dataSets_clean.type},'ictal'));
-relax= 10^-7; % value along non-driven diagonals of "relaxed" B matrix
+%relax= 10^-7; % value along non-driven diagonals of "relaxed" B matrix
 %scale= 10^7; % value along non-driven diagonals of "input penalty" R matrix
 
 % Energy Parameters to Test
@@ -137,32 +138,38 @@ for i_set= i_ict(1:end)
     xf= Energy(i_set).xf;
     
     for s=1:3  % iterate through states
+        s
     
     x0= Energy(i_set).x0(:,s);
     N=length(x0);
     A= Energy(i_set).repMats(:,:,s);  
     A_s= A./(1+svds(A,1))-eye(N);       % normalize representative matrix
     
-    [nodeEnergy, trajErr]= deal(zeros(length(x0),...
-        length(t_traj), length(rho)));
+%     [nodeEnergy, nodeEnergy_U, nodeEnergy_ext, trajErr]= deal(zeros(length(x0),...
+%         length(t_traj), length(rho)));
+%     xOpt=zeros(length(x0),length(t_traj), length(rho));
 
-    xOpt=zeros(length(x0),length(t_traj), length(rho));
-
-%     trajErr= Energy(i_set).(sprintf('s%dtrajErr',s));
-%     nodeEnergy= Energy(i_set).(sprintf('s%dNodeEnergy',s));
-%     xOpt = Energy(i_set).(sprintf('s%Xopt_dist',s));
+    trajErr= Energy(i_set).(sprintf('s%dtrajErr',s));
+    nodeEnergy= Energy(i_set).(sprintf('s%dNodeEnergy',s));
+    nodeEnergy_U= Energy(i_set).(sprintf('s%dNodeEnergy_U',s));
+    nodeEnergy_ext= Energy(i_set).(sprintf('s%dNodeEnergy_ext',s));
+    xOpt = Energy(i_set).(sprintf('s%Xopt_dist',s));
     
-    for i_traj= 1:length(t_traj) % try different time horizons
-        i_traj
+    for i_traj= 1:10 %1:length(t_traj) % try different time horizons Done: 1:6
         T= t_traj(i_traj);
-        for i_rho= 1:length(rho) % try different energy/distance tradeoffs
+        for i_rho= [(1:2), (10:12)] %1:length(rho) % try different energy/distance tradeoffs Done: 3:9
             r= rho(i_rho);
             try
                 for n=1:length(x0) %Calculate energy per node
                     
                     B=relax*ones(length(x0),1); B(n)=1; B=diag(B); 
                     [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
-                    nodeEnergy(n,i_traj,i_rho)=sum(vecnorm(U_opt').^2);
+                    
+                    wt_U= B*U_opt';   
+                    nodeEnergy(n,i_traj,i_rho)=sum(vecnorm(wt_U).^2);
+                    nodeEnergy_U(n,i_traj,i_rho)=sum(vecnorm(U_opt(:,n)').^2);
+                    nodeEnergy_ext(n,i_traj,i_rho)=sum(vecnorm(wt_U(n,:)).^2);
+
                     trajErr(n, i_traj,i_rho)=n_err;
                     xOpt(n, i_traj, i_rho)=mean((X_opt(end,1:N)'-xf).^2);
                     
@@ -193,6 +200,8 @@ for i_set= i_ict(1:end)
     
     Energy(i_set).(sprintf('s%dtrajErr',s))= trajErr;
     Energy(i_set).(sprintf('s%dNodeEnergy',s))= nodeEnergy;
+    Energy(i_set).(sprintf('s%dNodeEnergy_U',s))= nodeEnergy_U;
+    Energy(i_set).(sprintf('s%dNodeEnergy_ext',s))= nodeEnergy_ext;
     Energy(i_set).(sprintf('s%Xopt_dist',s))= xOpt;
     
     
@@ -200,8 +209,8 @@ for i_set= i_ict(1:end)
     toc
 end 
 
-save(fullfile('v4/DataV4.2/Energy.mat'), 'Energy', 't_traj', 'rho', 'freq_band', 'relax', 'info')
-disp('Energy Calc done')
+%save(fullfile('v4/DataV4.2/Energy_relax-7.mat'), 'Energy', 't_traj', 'rho', 'freq_band', 'relax', 'info')
+%disp('Energy Calc done')
 
 %% Part 2.5: Quantify error percentile for each patient and state
 
@@ -265,9 +274,9 @@ xtickangle(45);
 
 [pct_err, i_err]=min(max_percentiles, [], 'all', 'linear')
 [t_opt, r_opt]=ind2sub(size(max_percentiles), i_err)
-mn_err= [mean(err_stats(t_opt, r_opt, :)),std(err_stats(t_opt, r_opt, :))] 
 
-pctile_err= prctile(err_stats(t_opt, r_opt, :),[25 50 75]);
+mn_err= [mean(err_stats(t_opt, r_opt, :)),std(err_stats(t_opt, r_opt, :))] 
+pctile_err= prctile(err_stats(t_opt, r_opt, :),[25 50 75])
 
 %save(fullfile(datafold, '/Energy.mat'), 'err_stats', '-append')
 % saveas(gcf,'FigsV3.3/energy/energy_max_err_pcnt.png')
@@ -278,7 +287,7 @@ pctile_err= prctile(err_stats(t_opt, r_opt, :),[25 50 75]);
 %% Part 3: Add state Energy to State_Metrics
 
 % Define optimal T and rho (use  functions below to work this out)
-t_opt=7;
+t_opt=6;
 r_opt=7; 
 i_ict=find(strcmp({dataSets_clean.type},'ictal'));
 
@@ -286,8 +295,8 @@ for i_set=i_ict
     State_metrics(i_set).optEnergy=[];
     State_metrics(i_set+length(i_ict)).optEnergy=[];
     for s=1:3
-     State_metrics(i_set).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
-     State_metrics(i_set+length(i_ict)).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy',s))(:,t_opt, r_opt);
+     State_metrics(i_set).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy_U',s))(:,t_opt, r_opt);
+     State_metrics(i_set+length(i_ict)).optEnergy(:,s)=Energy(i_set).(sprintf('s%dNodeEnergy_U',s))(:,t_opt, r_opt);
     end
     State_metrics(i_set).optEnergyZ= zscore(State_metrics(i_set).optEnergy, [], 'all');
     State_metrics(i_set+length(i_ict)).optEnergyZ= zscore(State_metrics(i_set).optEnergy, [], 'all');
@@ -298,6 +307,7 @@ rOpt=rho(r_opt);
 %save('Data/State_metrics.mat', 'State_metrics', 'tOpt', 'rOpt', '-append');
 
 disp('done')
+
 %% Visualization for zooming in 
 
 for i_set=i_ict
@@ -358,6 +368,7 @@ xticks((rho_lim)-rho_lim(1)+1)
 end
 pause
 end
+
 %% Find min and max of all error trajectories
 % Get min, get max, choose value in the middle
 

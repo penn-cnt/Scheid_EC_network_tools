@@ -1,37 +1,42 @@
 run('initProjectBorel.m')
 
-disp('running Energy SOZ B1 10-7')
+disp('running Energy SOZ B1')
 
 fldnames=fieldnames(Energy);
 EnergySOZ= rmfield(Energy, fldnames(~ismember(fldnames,...
     {'ID', 'type', 'block', 'x0','repMats', 'xf', 'x0_z', 'xf_z','t_traj', 'rho'})));
 
-relax=10^-7; % input control energy off diagonal relaxation
-info= sprintf(['x0: mean bandpower',...
+%sigma=1.6332; % input control energy spread
+relax= 1e-5;
+info= ['x0: mean bandpower',...
       'xf: preict state, ', ...
-      'B: 1 at soz, off diagonal relaxed by %0.1d'],relax);
+      'B: 1 at SOZ points, 1e-5 else'];
   
 %% Part 2: Find ideal trajectory u* and optimal energy for SOZs
 
+tr= power(10, linspace(-2, log10(6), 10));
+t_traj= round([tr(1:7),(1:6)],3)
+
 for i_set=i_ict
     disp(i_set)
-    
+    EnergySOZ(i_set).t_traj=t_traj;
     % Get SOZ nodes:
+%     if ~any(dataSets_clean(i_set).sozGrid); continue; end
     soz=dataSets_clean(i_set).sozGrid; 
     if sum(soz)==0; continue; end
     
     for s=1:3  % iterate through states
     
-    x0= EnergySOZ(i_set).x0(:,s);
-    xf= EnergySOZ(i_set).xf;
+   % Normalize A_s
     
-    A= EnergySOZ(i_set).repMats(:,:,s);  
-    A_s= A./(1+svds(A,1))-eye(length(x0)); 
+    A= Energy(i_set).repMats(:,:,s);  
+    A_s= A./(1+svds(A,1))-eye(length(soz));   
     
     %B= getSpreadControl(dataSets_clean(i_set).gridCoords, soz, sigma);
+    x0= EnergySOZ(i_set).x0(:,s);
+    xf= EnergySOZ(i_set).xf;
     B=relax*ones(length(x0),1); B(soz)=1; B=diag(B);
-   
-    [nodeEnergySOZ, trajErr]= deal(zeros(length(t_traj), length(rho)));
+    [nodeEnergySOZ, nodeEnergySOZ_true, trajErr]= deal(zeros(length(t_traj), length(rho)));
     xOpt= zeros(length(t_traj), length(rho),length(soz));
     
     for i_traj=1:length(t_traj)
@@ -43,7 +48,9 @@ for i_set=i_ict
              %Calculate energy per node
             try   
                 [X_opt, U_opt, n_err] = optim_fun(A_s, T, B, x0, xf, r, eye(length(A_s)));
-                nodeEnergySOZ(i_traj,i_rho)=sum(vecnorm(U_opt').^2);
+                wt_U=B*U_opt'; 
+                nodeEnergySOZ(i_traj,i_rho)=sum(vecnorm(wt_U(soz,:)).^2);
+                nodeEnergySOZ_true(i_traj,i_rho)=sum(vecnorm(wt_U).^2);
                 trajErr(i_traj,i_rho)=n_err;
                 xOpt(i_traj, i_rho,:)=X_opt(end,1:length(soz))';
             catch ME
@@ -60,16 +67,17 @@ for i_set=i_ict
             
         end % rho
     end % t_traj
-    
+
     EnergySOZ(i_set).(sprintf('s%dtrajErr',s))= trajErr;
     EnergySOZ(i_set).(sprintf('s%dNodeEnergySOZ',s))=nodeEnergySOZ;
+    EnergySOZ(i_set).(sprintf('s%dNodeEnergySOZ_true',s))=nodeEnergySOZ_true;
     EnergySOZ(i_set).(sprintf('s%dX_optf',s))=xOpt;
     
     end % end states loop
 end 
 
 
-save('Data/EnergySOZ_relax-7.mat', 'EnergySOZ', 't_traj', 'rho', 'info', 'relax')
+save('Data/EnergySOZ_B1.mat', 'EnergySOZ', 't_traj', 'rho', 'info', 'relax')
 disp('Part 2 EnergySOZ Calc done')
 
 %%
