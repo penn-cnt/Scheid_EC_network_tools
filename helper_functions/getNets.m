@@ -2,6 +2,7 @@ function [Networks]=getNets(path, data, Lwin, gamma, beta)
 % This script calls the getICov.R script located in EC_glasso to retrieve
 % inverse covariance and partial correlation matrices across channels in
 
+% path- path to the folder with the getIcov.R script
 % data- Nxl data matrix, N channels, l-time samples
 % Lwin- time window to create network over,
 % gamma- EBIC parameter, 0.1-less regularization, 0.5-more regularization
