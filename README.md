@@ -12,6 +12,8 @@ Note, code in this repository has only been tested on linux and mac systems and 
 ## Example
 
 ```matlab 
+addpath(helper_functions)
+
 timeseries_data = [48 channels x 5000 samples]
 sampleRate = 500;
 
