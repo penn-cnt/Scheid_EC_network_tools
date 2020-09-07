@@ -11,7 +11,7 @@ function [Networks]=getNets(path, data, Lwin, gamma, beta)
 
     Networks=struct();
 
-    [~, l] = size(data);                   % number of channels
+    [~, l] = size(data);                   % number of samples
     TT= floor(l/(Lwin));                   % T: number of time windows
  
      save(fullfile(path, 'EC_glasso/tempSet.mat'), 'data', 'TT', 'Lwin', 'gamma')
