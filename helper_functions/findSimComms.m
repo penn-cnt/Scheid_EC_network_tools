@@ -85,8 +85,6 @@ while ctr < maxIter  % At most complete 5 iterations
 
     if cNum(i_low) == cNum(i_high)
         ctr= maxIter;
-        warning(['Maximum number of iterations reached without finding a partition containing ',...
-            'nTarget communities. Try again with a different initialization set of gamma values'])
         break; 
     end  % nTarget communities exists
 
