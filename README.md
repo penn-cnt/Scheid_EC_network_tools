@@ -15,7 +15,7 @@ Note, code in this repository has only been tested on linux and mac systems and 
 addpath(helper_functions)
 
 timeseries_data = [48 channels x 5000 samples]
-sampleRate = 500;
+windowSize = 500;
 
-Networks = getNets('./EC_glasso', timeseries_data, sampleRate, 0.5, [0, 0.1, .5])
+Networks = getNets('./', timeseries_data, windowSize, 0.5, [0, 0.1, .5])
 ```
