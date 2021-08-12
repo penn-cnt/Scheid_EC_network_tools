@@ -1,8 +1,7 @@
 # EC_network_tools
-Tools for effective connectivity network generation and analysis used in the following publication:
-Time-evolving controllability of effective connectivity networks during seizure progression
-Brittany H. Scheid, Arian Ashourvan, Jennifer Stiso, Kathryn A. Davis, Fadi Mikhail, Fabio Pasqualetti, Brian Litt, Danielle S. Bassett
-Proceedings of the National Academy of Sciences Feb 2021, 118 (5) e2006436118; DOI: https://doi.org/10.1073/pnas.2006436118
+Tools for effective connectivity network generation and analysis used in the following publication: 
+
+<b>Time-evolving controllability of effective connectivity networks during seizure progression.</b> Brittany H. Scheid, Arian Ashourvan, Jennifer Stiso, Kathryn A. Davis, Fadi Mikhail, Fabio Pasqualetti, Brian Litt, Danielle S. Bassett. <i> Proceedings of the National Academy of Sciences</i>, Feb 2021, 118 (5) e2006436118; DOI: https://doi.org/10.1073/pnas.2006436118  
 
 ## Requirements
 - Matlab >= 2018a
